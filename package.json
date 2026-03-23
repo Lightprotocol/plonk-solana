@@ -1,0 +1,11 @@
+{
+  "name": "plonk-solana",
+  "private": true,
+  "scripts": {
+    "setup": "./scripts/setup.sh",
+    "clean": "./scripts/clean.sh"
+  },
+  "dependencies": {
+    "snarkjs": "^0.7.0"
+  }
+}

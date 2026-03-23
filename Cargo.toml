@@ -1,0 +1,8 @@
+[workspace]
+members = ["arkworks-verifier", "crates/plonk-solana", "tests/integration-program"]
+resolver = "2"
+
+# Pin blake3 to avoid constant_time_eq 0.4.2 which requires edition2024
+# (incompatible with SBF toolchain's cargo 1.84)
+[workspace.dependencies]
+blake3 = "=1.8.2"
