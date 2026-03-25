@@ -70,12 +70,12 @@ pub fn load_test_proof() -> Proof {
         t3: parse_g1_be(&p.t3),
         wxi: parse_g1_be(&p.wxi),
         wxiw: parse_g1_be(&p.wxiw),
-        eval_a: Fr::from_be_bytes(&str_to_be32(&p.eval_a)),
-        eval_b: Fr::from_be_bytes(&str_to_be32(&p.eval_b)),
-        eval_c: Fr::from_be_bytes(&str_to_be32(&p.eval_c)),
-        eval_s1: Fr::from_be_bytes(&str_to_be32(&p.eval_s1)),
-        eval_s2: Fr::from_be_bytes(&str_to_be32(&p.eval_s2)),
-        eval_zw: Fr::from_be_bytes(&str_to_be32(&p.eval_zw)),
+        eval_a: Fr::from_be_bytes_unchecked(&str_to_be32(&p.eval_a)),
+        eval_b: Fr::from_be_bytes_unchecked(&str_to_be32(&p.eval_b)),
+        eval_c: Fr::from_be_bytes_unchecked(&str_to_be32(&p.eval_c)),
+        eval_s1: Fr::from_be_bytes_unchecked(&str_to_be32(&p.eval_s1)),
+        eval_s2: Fr::from_be_bytes_unchecked(&str_to_be32(&p.eval_s2)),
+        eval_zw: Fr::from_be_bytes_unchecked(&str_to_be32(&p.eval_zw)),
     }
 }
 
@@ -83,12 +83,12 @@ pub fn load_test_public_inputs() -> Vec<Fr> {
     let vals: Vec<String> =
         serde_json::from_str(include_str!("../../../tests/fixtures/data/public.json")).unwrap();
     vals.iter()
-        .map(|s| Fr::from_be_bytes(&str_to_be32(s)))
+        .map(|s| Fr::from_be_bytes_unchecked(&str_to_be32(s)))
         .collect()
 }
 
-pub fn load_test_public_inputs_bytes() -> Vec<[u8; 32]> {
+pub fn load_test_public_input_bytes() -> [u8; 32] {
     let vals: Vec<String> =
         serde_json::from_str(include_str!("../../../tests/fixtures/data/public.json")).unwrap();
-    vals.iter().map(|s| str_to_be32(s)).collect()
+    str_to_be32(&vals[0])
 }

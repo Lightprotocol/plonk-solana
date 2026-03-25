@@ -8,8 +8,8 @@ use plonk_solana::{verify, PlonkError};
 fn test_verify_valid_proof() {
     let vk = common::load_test_vk();
     let proof = common::load_test_proof();
-    let public_inputs = common::load_test_public_inputs_bytes();
-    verify(&vk, &proof, &public_inputs).unwrap();
+    let public_input = common::load_test_public_input_bytes();
+    verify(&vk, &proof, &[public_input]).unwrap();
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn test_verify_fails_empty_public_inputs() {
     let vk = common::load_test_vk();
     let proof = common::load_test_proof();
     assert_eq!(
-        verify(&vk, &proof, &[]),
+        verify::<0>(&vk, &proof, &[]),
         Err(PlonkError::InvalidPublicInputsLength),
         "Expected InvalidPublicInputsLength for empty inputs"
     );

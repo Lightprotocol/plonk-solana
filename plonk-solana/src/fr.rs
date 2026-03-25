@@ -24,7 +24,18 @@ impl Fr {
         Self(ArkFr::one())
     }
 
-    pub fn from_be_bytes(bytes: &[u8]) -> Self {
+    /// Convert big-endian bytes to Fr, rejecting non-canonical values.
+    /// Returns `None` if the value is >= the BN254 scalar field modulus.
+    pub fn from_be_bytes(bytes: &[u8; 32]) -> Option<Self> {
+        if !is_less_than_bn254_field_size_be(bytes) {
+            return None;
+        }
+        Some(Self::from_be_bytes_unchecked(bytes))
+    }
+
+    /// Convert big-endian bytes to Fr with silent modular reduction.
+    /// Non-canonical values (>= field modulus) are reduced without error.
+    pub fn from_be_bytes_unchecked(bytes: &[u8]) -> Self {
         let n = BigUint::from_bytes_be(bytes);
         Self(ArkFr::from(n))
     }
@@ -93,7 +104,9 @@ impl borsh::BorshDeserialize for Fr {
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
         let mut buf = [0u8; 32];
         reader.read_exact(&mut buf)?;
-        Ok(Fr::from_be_bytes(&buf))
+        Fr::from_be_bytes(&buf).ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, "Fr value >= field modulus")
+        })
     }
 }
 
@@ -117,7 +130,7 @@ impl<'de> serde::Deserialize<'de> for Fr {
                 let bytes: [u8; 32] = v
                     .try_into()
                     .map_err(|_| E::invalid_length(v.len(), &"32 bytes"))?;
-                Ok(Fr::from_be_bytes(&bytes))
+                Fr::from_be_bytes(&bytes).ok_or_else(|| E::custom("Fr value >= field modulus"))
             }
             fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Fr, A::Error> {
                 let mut bytes = [0u8; 32];
@@ -126,7 +139,8 @@ impl<'de> serde::Deserialize<'de> for Fr {
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(i, &"32 bytes"))?;
                 }
-                Ok(Fr::from_be_bytes(&bytes))
+                Fr::from_be_bytes(&bytes)
+                    .ok_or_else(|| serde::de::Error::custom("Fr value >= field modulus"))
             }
         }
         deserializer.deserialize_bytes(FrVisitor)

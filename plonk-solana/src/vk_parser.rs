@@ -121,9 +121,9 @@ pub fn parse_vk_json(json_content: &str) -> Result<VerificationKey, VkParseError
     Ok(VerificationKey {
         n_public: raw.n_public,
         power: raw.power,
-        k1: Fr::from_be_bytes(&bigint_to_be32(&raw.k1)?),
-        k2: Fr::from_be_bytes(&bigint_to_be32(&raw.k2)?),
-        w: Fr::from_be_bytes(&bigint_to_be32(&raw.w)?),
+        k1: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.k1)?),
+        k2: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.k2)?),
+        w: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.w)?),
         qm: parse_g1(&raw.qm)?,
         ql: parse_g1(&raw.ql)?,
         qr: parse_g1(&raw.qr)?,
@@ -153,7 +153,7 @@ fn format_g2(point: &G2) -> String {
 }
 
 fn format_fr(bytes: &[u8; 32]) -> String {
-    format!("Fr::from_be_bytes(&[{}])", format_bytes(bytes))
+    format!("Fr::from_be_bytes_unchecked(&[{}])", format_bytes(bytes))
 }
 
 /// Parse a snarkjs PLONK verification key JSON and generate Rust source code.
@@ -242,12 +242,12 @@ pub fn parse_proof_json(json_content: &str) -> Result<crate::plonk::Proof, VkPar
         wxi: parse_g1(&raw.wxi)?,
         wxiw: parse_g1(&raw.wxiw)?,
 
-        eval_a: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_a)?),
-        eval_b: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_b)?),
-        eval_c: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_c)?),
-        eval_s1: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_s1)?),
-        eval_s2: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_s2)?),
-        eval_zw: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_zw)?),
+        eval_a: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.eval_a)?),
+        eval_b: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.eval_b)?),
+        eval_c: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.eval_c)?),
+        eval_s1: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.eval_s1)?),
+        eval_s2: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.eval_s2)?),
+        eval_zw: Fr::from_be_bytes_unchecked(&bigint_to_be32(&raw.eval_zw)?),
     })
 }
 
@@ -255,7 +255,7 @@ pub fn parse_proof_json(json_content: &str) -> Result<crate::plonk::Proof, VkPar
 pub fn parse_public_inputs_json(json_content: &str) -> Result<Vec<Fr>, VkParseError> {
     let vals: Vec<String> = serde_json::from_str(json_content)?;
     vals.iter()
-        .map(|s| Ok(Fr::from_be_bytes(&bigint_to_be32(s)?)))
+        .map(|s| Ok(Fr::from_be_bytes_unchecked(&bigint_to_be32(s)?)))
         .collect()
 }
 

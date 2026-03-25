@@ -202,12 +202,12 @@ fn g1_mul(point: &G1, scalar: &Fr) -> Result<G1, PlonkError> {
 ///
 /// Public inputs are raw 32-byte big-endian values. Each is validated against
 /// the BN254 scalar field modulus before conversion to Fr.
-pub fn verify(
+pub fn verify<const N: usize>(
     vk: &VerificationKey,
     proof: &Proof,
-    public_inputs: &[[u8; 32]],
+    public_inputs: &[[u8; 32]; N],
 ) -> Result<(), PlonkError> {
-    if public_inputs.len() != vk.n_public as usize {
+    if N != vk.n_public as usize {
         return Err(PlonkError::InvalidPublicInputsLength);
     }
     for input in public_inputs {
@@ -215,7 +215,8 @@ pub fn verify(
             return Err(PlonkError::PublicInputGreaterThanFieldSize);
         }
     }
-    let fr_inputs: Vec<Fr> = public_inputs.iter().map(|b| Fr::from_be_bytes(b)).collect();
+    let fr_inputs: [Fr; N] =
+        core::array::from_fn(|i| Fr::from_be_bytes_unchecked(&public_inputs[i]));
     verify_unchecked(vk, proof, &fr_inputs)
 }
 
@@ -493,16 +494,13 @@ mod tests {
             .unwrap()
     }
 
-    fn test_public_inputs_bytes() -> Vec<[u8; 32]> {
-        test_public_inputs_fr()
-            .iter()
-            .map(|f| f.to_be_bytes())
-            .collect()
+    fn test_public_input_bytes() -> [u8; 32] {
+        test_public_inputs_fr()[0].to_be_bytes()
     }
 
     #[test]
     fn test_plonk_verify_valid_proof() {
-        verify(&test_vk(), &test_proof(), &test_public_inputs_bytes()).unwrap();
+        verify(&test_vk(), &test_proof(), &[test_public_input_bytes()]).unwrap();
     }
 
     #[test]
@@ -522,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_plonk_verify_wrong_input_count() {
-        let result = verify(&test_vk(), &test_proof(), &[] as &[[u8; 32]]);
+        let result = verify::<0>(&test_vk(), &test_proof(), &[]);
         assert_eq!(
             result,
             Err(PlonkError::InvalidPublicInputsLength),
@@ -548,7 +546,7 @@ mod tests {
 
         // verify_unchecked does not check field size -- the non-canonical value
         // silently reduces and causes a proof verification failure instead.
-        let fr_input = Fr::from_be_bytes(&input);
+        let fr_input = Fr::from_be_bytes_unchecked(&input);
         let result = verify_unchecked(&test_vk(), &test_proof(), &[fr_input]);
         assert_eq!(
             result,
@@ -562,7 +560,7 @@ mod tests {
         let proof = test_proof();
         let compressed = proof.compress().unwrap();
         let decompressed = compressed.decompress().unwrap();
-        verify(&test_vk(), &decompressed, &test_public_inputs_bytes()).unwrap();
+        verify(&test_vk(), &decompressed, &[test_public_input_bytes()]).unwrap();
     }
 
     #[test]

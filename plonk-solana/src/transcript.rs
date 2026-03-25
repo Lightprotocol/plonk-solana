@@ -65,6 +65,6 @@ impl Transcript {
         }
 
         let hash = Keccak::hash(&buffer).map_err(|_| PlonkError::KeccakFailed)?;
-        Ok(Fr::from_be_bytes(&hash))
+        Ok(Fr::from_be_bytes_unchecked(&hash))
     }
 }

@@ -39,13 +39,12 @@ fn process_instruction(
 
     let mut offset = 1;
 
-    let mut public_inputs: Vec<[u8; 32]> = Vec::with_capacity(n_public);
-    for _ in 0..n_public {
+    let public_inputs: [[u8; 32]; 1] = core::array::from_fn(|_| {
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(&instruction_data[offset..offset + 32]);
-        public_inputs.push(bytes);
         offset += 32;
-    }
+        bytes
+    });
 
     fn read_g1(data: &[u8], offset: &mut usize) -> plonk_solana::G1 {
         let mut point = [0u8; 64];
@@ -57,7 +56,7 @@ fn process_instruction(
     fn read_fr(data: &[u8], offset: &mut usize) -> Fr {
         let bytes = &data[*offset..*offset + 32];
         *offset += 32;
-        Fr::from_be_bytes(bytes)
+        Fr::from_be_bytes_unchecked(bytes)
     }
 
     let proof = Proof {

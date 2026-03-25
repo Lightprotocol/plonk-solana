@@ -19,11 +19,11 @@ fn test_compression_roundtrip() {
 fn test_compressed_proof_verifies() {
     let vk = common::load_test_vk();
     let proof = common::load_test_proof();
-    let public_inputs = common::load_test_public_inputs_bytes();
+    let public_input = common::load_test_public_input_bytes();
 
     let compressed = proof.compress().unwrap();
     let decompressed = compressed.decompress().unwrap();
-    verify(&vk, &decompressed, &public_inputs).unwrap();
+    verify(&vk, &decompressed, &[public_input]).unwrap();
 }
 
 #[test]
