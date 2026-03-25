@@ -83,6 +83,9 @@ runs:
       shell: bash
       run: npm install -g snarkjs
 
+    - name: Install just
+      uses: extractions/setup-just@v2
+
     - name: Display versions
       shell: bash
       run: |
@@ -90,4 +93,5 @@ runs:
         cargo --version
         node --version
         circom --version
+        just --version
         if command -v solana &>/dev/null; then solana --version; fi

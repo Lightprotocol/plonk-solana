@@ -1,7 +1,7 @@
 # plonk-solana justfile
 
-# Run all tests (unit + integration)
-test: test-unit test-integration
+# Run all tests (unit + arkworks + integration + TypeScript)
+test: test-unit test-arkworks test-integration test-ts
 
 # Unit tests for plonk-solana crate
 test-unit:
@@ -14,6 +14,10 @@ test-integration: build-sbf
 # Build the integration program for SBF
 build-sbf:
     cargo build-sbf --manifest-path tests/integration-program/Cargo.toml
+
+# TypeScript integration test (dynamic snarkjs proof generation)
+test-ts: build-sbf
+    SBF_OUT_DIR=target/deploy npx vitest run --config tests/ts-integration/vitest.config.ts
 
 # Run arkworks reference verifier tests
 test-arkworks:

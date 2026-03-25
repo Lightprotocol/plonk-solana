@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use num_bigint::BigUint;
 use plonk_solana::{Fr, Proof, VerificationKey, G1};
 use serde::Deserialize;

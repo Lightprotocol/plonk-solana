@@ -33,14 +33,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           circom-version: ${{ env.CIRCOM_VERSION }}
 
+      - name: Lint
+        run: just lint
+
       - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-      - name: Check README
-        run: cargo rdme --check --force
+        run: just format-check
 
   test:
     name: Test
@@ -60,13 +57,7 @@ jobs:
         run: npm install
 
       - name: Build test circuit
-        run: ./tests/fixtures/scripts/setup.sh
+        run: just build-test-circuit
 
-      - name: Test workspace
-        run: cargo test --workspace
-
-      - name: Build SBF program
-        run: cargo build-sbf --manifest-path tests/integration-program/Cargo.toml
-
-      - name: Test SBF integration
-        run: cargo test-sbf --manifest-path tests/integration-program/Cargo.toml
+      - name: Run all tests
+        run: just test

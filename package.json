@@ -7,5 +7,11 @@
   },
   "dependencies": {
     "snarkjs": "^0.7.0"
+  },
+  "devDependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "solana-bankrun": "^0.4.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
