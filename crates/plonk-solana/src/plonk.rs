@@ -22,25 +22,24 @@ const G1_GENERATOR: [u8; 64] = {
 
 /// G2 generator in big-endian format (EIP-197 order: x1, x0, y1, y0).
 const G2_GENERATOR: [u8; 128] = [
-    0x19, 0x8e, 0x93, 0x93, 0x92, 0x0d, 0x48, 0x3a, 0x72, 0x60, 0xbf, 0xb7, 0x31, 0xfb, 0x5d,
-    0x25, 0xf1, 0xaa, 0x49, 0x33, 0x35, 0xa9, 0xe7, 0x12, 0x97, 0xe4, 0x85, 0xb7, 0xae, 0xf3,
-    0x12, 0xc2, 0x18, 0x00, 0xde, 0xef, 0x12, 0x1f, 0x1e, 0x76, 0x42, 0x6a, 0x00, 0x66, 0x5e,
-    0x5c, 0x44, 0x79, 0x67, 0x43, 0x22, 0xd4, 0xf7, 0x5e, 0xda, 0xdd, 0x46, 0xde, 0xbd, 0x5c,
-    0xd9, 0x92, 0xf6, 0xed, 0x09, 0x06, 0x89, 0xd0, 0x58, 0x5f, 0xf0, 0x75, 0xec, 0x9e, 0x99,
-    0xad, 0x69, 0x0c, 0x33, 0x95, 0xbc, 0x4b, 0x31, 0x33, 0x70, 0xb3, 0x8e, 0xf3, 0x55, 0xac,
-    0xda, 0xdc, 0xd1, 0x22, 0x97, 0x5b, 0x12, 0xc8, 0x5e, 0xa5, 0xdb, 0x8c, 0x6d, 0xeb, 0x4a,
-    0xab, 0x71, 0x80, 0x8d, 0xcb, 0x40, 0x8f, 0xe3, 0xd1, 0xe7, 0x69, 0x0c, 0x43, 0xd3, 0x7b,
-    0x4c, 0xe6, 0xcc, 0x01, 0x66, 0xfa, 0x7d, 0xaa,
+    0x19, 0x8e, 0x93, 0x93, 0x92, 0x0d, 0x48, 0x3a, 0x72, 0x60, 0xbf, 0xb7, 0x31, 0xfb, 0x5d, 0x25,
+    0xf1, 0xaa, 0x49, 0x33, 0x35, 0xa9, 0xe7, 0x12, 0x97, 0xe4, 0x85, 0xb7, 0xae, 0xf3, 0x12, 0xc2,
+    0x18, 0x00, 0xde, 0xef, 0x12, 0x1f, 0x1e, 0x76, 0x42, 0x6a, 0x00, 0x66, 0x5e, 0x5c, 0x44, 0x79,
+    0x67, 0x43, 0x22, 0xd4, 0xf7, 0x5e, 0xda, 0xdd, 0x46, 0xde, 0xbd, 0x5c, 0xd9, 0x92, 0xf6, 0xed,
+    0x09, 0x06, 0x89, 0xd0, 0x58, 0x5f, 0xf0, 0x75, 0xec, 0x9e, 0x99, 0xad, 0x69, 0x0c, 0x33, 0x95,
+    0xbc, 0x4b, 0x31, 0x33, 0x70, 0xb3, 0x8e, 0xf3, 0x55, 0xac, 0xda, 0xdc, 0xd1, 0x22, 0x97, 0x5b,
+    0x12, 0xc8, 0x5e, 0xa5, 0xdb, 0x8c, 0x6d, 0xeb, 0x4a, 0xab, 0x71, 0x80, 0x8d, 0xcb, 0x40, 0x8f,
+    0xe3, 0xd1, 0xe7, 0x69, 0x0c, 0x43, 0xd3, 0x7b, 0x4c, 0xe6, 0xcc, 0x01, 0x66, 0xfa, 0x7d, 0xaa,
 ];
 
 /// BN254 base field modulus (Fq) in big-endian.
 const FQ_MODULUS: [u8; 32] = [
-    0x30, 0x64, 0x4e, 0x72, 0xe1, 0x31, 0xa0, 0x29, 0xb8, 0x50, 0x45, 0xb6, 0x81, 0x81, 0x58,
-    0x5d, 0x97, 0x81, 0x6a, 0x91, 0x68, 0x71, 0xca, 0x8d, 0x3c, 0x20, 0x8c, 0x16, 0xd8, 0x7c,
-    0xfd, 0x47,
+    0x30, 0x64, 0x4e, 0x72, 0xe1, 0x31, 0xa0, 0x29, 0xb8, 0x50, 0x45, 0xb6, 0x81, 0x81, 0x58, 0x5d,
+    0x97, 0x81, 0x6a, 0x91, 0x68, 0x71, 0xca, 0x8d, 0x3c, 0x20, 0x8c, 0x16, 0xd8, 0x7c, 0xfd, 0x47,
 ];
 
 /// Verification key (all points in 64/128-byte big-endian format).
+#[derive(Debug, PartialEq)]
 pub struct VerificationKey {
     pub n_public: usize,
     pub power: u32,
@@ -59,6 +58,7 @@ pub struct VerificationKey {
 }
 
 /// Proof (G1 points in 64-byte big-endian uncompressed format).
+#[derive(Debug, PartialEq)]
 pub struct Proof {
     pub a: [u8; 64],
     pub b: [u8; 64],
@@ -79,6 +79,7 @@ pub struct Proof {
 
 /// Compressed proof (G1 points as 32 bytes each).
 /// 9 * 32 + 6 * 32 = 480 bytes vs 768 bytes uncompressed.
+#[derive(Debug, PartialEq)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 32],
@@ -155,9 +156,7 @@ struct Challenges {
 fn g1_add(a: &[u8; 64], b: &[u8; 64]) -> Result<[u8; 64], PlonkError> {
     let input = [a.as_slice(), b.as_slice()].concat();
     let result = alt_bn128_g1_addition_be(&input).map_err(|_| PlonkError::G1AdditionFailed)?;
-    result
-        .try_into()
-        .map_err(|_| PlonkError::G1AdditionFailed)
+    result.try_into().map_err(|_| PlonkError::G1AdditionFailed)
 }
 
 fn g1_sub(a: &[u8; 64], b: &[u8; 64]) -> Result<[u8; 64], PlonkError> {
@@ -174,7 +173,9 @@ fn g1_neg(p: &[u8; 64]) -> [u8; 64] {
     let y = &p[32..64];
     let mut borrow: u16 = 0;
     for i in (0..32).rev() {
-        let diff = (FQ_MODULUS[i] as u16).wrapping_sub(y[i] as u16).wrapping_sub(borrow);
+        let diff = (FQ_MODULUS[i] as u16)
+            .wrapping_sub(y[i] as u16)
+            .wrapping_sub(borrow);
         result[32 + i] = diff as u8;
         borrow = if diff > 255 { 1 } else { 0 };
     }
@@ -184,17 +185,12 @@ fn g1_neg(p: &[u8; 64]) -> [u8; 64] {
 fn g1_mul(point: &[u8; 64], scalar: &Fr) -> Result<[u8; 64], PlonkError> {
     let s = scalar.to_be_bytes();
     let input = [point.as_slice(), s.as_slice()].concat();
-    let result =
-        alt_bn128_g1_multiplication_be(&input).map_err(|_| PlonkError::G1MulFailed)?;
+    let result = alt_bn128_g1_multiplication_be(&input).map_err(|_| PlonkError::G1MulFailed)?;
     result.try_into().map_err(|_| PlonkError::G1MulFailed)
 }
 
 /// Verify a PLONK proof against a verification key and public inputs.
-pub fn verify(
-    vk: &VerificationKey,
-    proof: &Proof,
-    public_inputs: &[Fr],
-) -> Result<(), PlonkError> {
+pub fn verify(vk: &VerificationKey, proof: &Proof, public_inputs: &[Fr]) -> Result<(), PlonkError> {
     if public_inputs.len() != vk.n_public {
         return Err(PlonkError::InvalidPublicInputsLength);
     }
@@ -441,145 +437,63 @@ fn is_valid_pairing(
     Ok(result[31] == 1)
 }
 
-#[cfg(all(test, feature = "vk"))]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use serde::Deserialize;
-
-    // ProofJson + proof/public parsing remain here (no proof_parser feature yet)
-    #[derive(Deserialize)]
-    struct ProofJson {
-        #[serde(rename = "A")]
-        a: Vec<String>,
-        #[serde(rename = "B")]
-        b: Vec<String>,
-        #[serde(rename = "C")]
-        c: Vec<String>,
-        #[serde(rename = "Z")]
-        z: Vec<String>,
-        #[serde(rename = "T1")]
-        t1: Vec<String>,
-        #[serde(rename = "T2")]
-        t2: Vec<String>,
-        #[serde(rename = "T3")]
-        t3: Vec<String>,
-        #[serde(rename = "Wxi")]
-        wxi: Vec<String>,
-        #[serde(rename = "Wxiw")]
-        wxiw: Vec<String>,
-        eval_a: String,
-        eval_b: String,
-        eval_c: String,
-        eval_s1: String,
-        eval_s2: String,
-        eval_zw: String,
-    }
-
-    fn str_to_be32(s: &str) -> [u8; 32] {
-        let n = num_bigint::BigUint::parse_bytes(s.as_bytes(), 10).unwrap();
-        let bytes = n.to_bytes_be();
-        let mut result = [0u8; 32];
-        let start = 32usize.saturating_sub(bytes.len());
-        result[start..].copy_from_slice(&bytes);
-        result
-    }
-
-    fn parse_g1_be(coords: &[String]) -> [u8; 64] {
-        if coords[2] == "0" {
-            return [0u8; 64];
-        }
-        let mut result = [0u8; 64];
-        result[..32].copy_from_slice(&str_to_be32(&coords[0]));
-        result[32..].copy_from_slice(&str_to_be32(&coords[1]));
-        result
-    }
+    use crate::vk_parser;
 
     fn test_vk() -> VerificationKey {
-        crate::vk_parser::parse_vk_json(include_str!("../test-fixtures/verification_key.json"))
-            .unwrap()
+        vk_parser::parse_vk_json(include_str!("../test-fixtures/verification_key.json")).unwrap()
     }
 
     fn test_proof() -> Proof {
-        let p: ProofJson =
-            serde_json::from_str(include_str!("../test-fixtures/proof.json")).unwrap();
-        Proof {
-            a: parse_g1_be(&p.a),
-            b: parse_g1_be(&p.b),
-            c: parse_g1_be(&p.c),
-            z: parse_g1_be(&p.z),
-            t1: parse_g1_be(&p.t1),
-            t2: parse_g1_be(&p.t2),
-            t3: parse_g1_be(&p.t3),
-            wxi: parse_g1_be(&p.wxi),
-            wxiw: parse_g1_be(&p.wxiw),
-            eval_a: Fr::from_be_bytes(&str_to_be32(&p.eval_a)),
-            eval_b: Fr::from_be_bytes(&str_to_be32(&p.eval_b)),
-            eval_c: Fr::from_be_bytes(&str_to_be32(&p.eval_c)),
-            eval_s1: Fr::from_be_bytes(&str_to_be32(&p.eval_s1)),
-            eval_s2: Fr::from_be_bytes(&str_to_be32(&p.eval_s2)),
-            eval_zw: Fr::from_be_bytes(&str_to_be32(&p.eval_zw)),
-        }
+        vk_parser::parse_proof_json(include_str!("../test-fixtures/proof.json")).unwrap()
     }
 
     fn test_public_inputs() -> Vec<Fr> {
-        let vals: Vec<String> =
-            serde_json::from_str(include_str!("../test-fixtures/public.json")).unwrap();
-        vals.iter()
-            .map(|s| Fr::from_be_bytes(&str_to_be32(s)))
-            .collect()
+        vk_parser::parse_public_inputs_json(include_str!("../test-fixtures/public.json")).unwrap()
     }
 
     #[test]
     fn test_plonk_verify_valid_proof() {
-        let vk = test_vk();
-        let proof = test_proof();
-        let public_inputs = test_public_inputs();
-        verify(&vk, &proof, &public_inputs).unwrap();
+        verify(&test_vk(), &test_proof(), &test_public_inputs()).unwrap();
     }
 
     #[test]
     fn test_plonk_verify_invalid_public_input() {
-        let vk = test_vk();
-        let proof = test_proof();
-        let bad_inputs = vec![Fr::from(34u64)];
+        let result = verify(&test_vk(), &test_proof(), &[Fr::from(34u64)]);
         assert_eq!(
-            verify(&vk, &proof, &bad_inputs),
-            Err(PlonkError::ProofVerificationFailed)
+            result,
+            Err(PlonkError::ProofVerificationFailed),
+            "invalid public input should cause verification failure"
+        );
+    }
+
+    #[test]
+    fn test_plonk_verify_wrong_input_count() {
+        let result = verify(&test_vk(), &test_proof(), &[]);
+        assert_eq!(
+            result,
+            Err(PlonkError::InvalidPublicInputsLength),
+            "wrong number of public inputs should be rejected"
         );
     }
 
     #[test]
     fn test_plonk_verify_compressed_proof() {
-        let vk = test_vk();
         let proof = test_proof();
-        let public_inputs = test_public_inputs();
-
         let compressed = proof.compress().unwrap();
         let decompressed = compressed.decompress().unwrap();
-
-        verify(&vk, &decompressed, &public_inputs).unwrap();
+        verify(&test_vk(), &decompressed, &test_public_inputs()).unwrap();
     }
 
     #[test]
     fn test_compression_roundtrip() {
         let proof = test_proof();
-        let compressed = proof.compress().unwrap();
-        let decompressed = compressed.decompress().unwrap();
-
-        assert_eq!(proof.a, decompressed.a);
-        assert_eq!(proof.b, decompressed.b);
-        assert_eq!(proof.c, decompressed.c);
-        assert_eq!(proof.z, decompressed.z);
-        assert_eq!(proof.t1, decompressed.t1);
-        assert_eq!(proof.t2, decompressed.t2);
-        assert_eq!(proof.t3, decompressed.t3);
-        assert_eq!(proof.wxi, decompressed.wxi);
-        assert_eq!(proof.wxiw, decompressed.wxiw);
-        assert_eq!(proof.eval_a, decompressed.eval_a);
-        assert_eq!(proof.eval_b, decompressed.eval_b);
-        assert_eq!(proof.eval_c, decompressed.eval_c);
-        assert_eq!(proof.eval_s1, decompressed.eval_s1);
-        assert_eq!(proof.eval_s2, decompressed.eval_s2);
-        assert_eq!(proof.eval_zw, decompressed.eval_zw);
+        let decompressed = proof.compress().unwrap().decompress().unwrap();
+        assert_eq!(
+            proof, decompressed,
+            "proof should survive compress/decompress roundtrip"
+        );
     }
 }

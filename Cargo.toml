@@ -1,8 +1,47 @@
 [workspace]
-members = ["arkworks-verifier", "crates/plonk-solana", "tests/integration-program"]
+members = ["tests/arkworks-verifier", "crates/plonk-solana", "tests/integration-program"]
 resolver = "2"
 
+[workspace.dependencies]
 # Pin blake3 to avoid constant_time_eq 0.4.2 which requires edition2024
 # (incompatible with SBF toolchain's cargo 1.84)
-[workspace.dependencies]
 blake3 = "=1.8.2"
+
+# Arkworks
+ark-bn254 = "0.5"
+ark-ec = "0.5"
+ark-ff = "0.5"
+ark-serialize = "0.5"
+
+# Solana
+solana-bn254 = "3"
+solana-program = "2.2"
+solana-compute-budget = "~3.1"
+solana-keypair = "~3.1"
+solana-signer = "~3.0"
+solana-instruction = "~3.1"
+solana-message = "~3.0"
+solana-transaction = { version = "~3.0", features = ["verify", "bincode"] }
+solana-pubkey = "~3.0"
+
+# Hashing
+light-hasher = { version = "5.0", features = ["keccak"] }
+sha3 = "0.10"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Numeric
+num-bigint = "0.4"
+num-traits = "0.2"
+
+# Error handling
+thiserror = "2"
+
+# Testing
+litesvm = "0.9"
+proptest = "1"
+
+# Internal
+plonk-solana = { path = "crates/plonk-solana" }

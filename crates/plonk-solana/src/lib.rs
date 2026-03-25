@@ -1,10 +1,10 @@
 pub mod decompression;
 pub mod errors;
-pub mod plonk;
 pub mod fr;
+pub mod plonk;
 pub(crate) mod transcript;
 
-#[cfg(feature = "vk")]
+#[cfg(any(feature = "vk", test))]
 pub mod vk_parser;
 
 pub use decompression::{compress_g1, decompress_g1};

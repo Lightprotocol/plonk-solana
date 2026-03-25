@@ -7,15 +7,16 @@ edition = "2021"
 vk = ["serde", "serde_json"]
 
 [dependencies]
-ark-bn254 = "0.5"
-ark-ff = { version = "0.5", features = ["std"] }
-num-bigint = "0.4"
-solana-bn254 = "3"
-light-hasher = { version = "5.0", features = ["keccak"] }
-thiserror = "2"
-serde = { version = "1", features = ["derive"], optional = true }
-serde_json = { version = "1", optional = true }
+ark-bn254.workspace = true
+ark-ff = { workspace = true, features = ["std"] }
+num-bigint.workspace = true
+solana-bn254.workspace = true
+light-hasher.workspace = true
+thiserror.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde.workspace = true
+serde_json.workspace = true
+proptest.workspace = true

@@ -37,6 +37,12 @@ fn fr_to_be_bytes(f: &Fr) -> [u8; 32] {
     result
 }
 
+impl Default for Transcript {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Transcript {
     pub fn new() -> Self {
         Self { data: Vec::new() }

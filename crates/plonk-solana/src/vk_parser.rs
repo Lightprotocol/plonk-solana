@@ -198,6 +198,64 @@ pub fn parse_vk_json_to_rust_string(json_content: &str) -> Result<String, VkPars
     Ok(out)
 }
 
+/// Parse a snarkjs PLONK proof JSON string into a `Proof`.
+pub fn parse_proof_json(json_content: &str) -> Result<crate::plonk::Proof, VkParseError> {
+    #[derive(Deserialize)]
+    struct RawProof {
+        #[serde(rename = "A")]
+        a: Vec<String>,
+        #[serde(rename = "B")]
+        b: Vec<String>,
+        #[serde(rename = "C")]
+        c: Vec<String>,
+        #[serde(rename = "Z")]
+        z: Vec<String>,
+        #[serde(rename = "T1")]
+        t1: Vec<String>,
+        #[serde(rename = "T2")]
+        t2: Vec<String>,
+        #[serde(rename = "T3")]
+        t3: Vec<String>,
+        #[serde(rename = "Wxi")]
+        wxi: Vec<String>,
+        #[serde(rename = "Wxiw")]
+        wxiw: Vec<String>,
+        eval_a: String,
+        eval_b: String,
+        eval_c: String,
+        eval_s1: String,
+        eval_s2: String,
+        eval_zw: String,
+    }
+
+    let raw: RawProof = serde_json::from_str(json_content)?;
+    Ok(crate::plonk::Proof {
+        a: parse_g1(&raw.a)?,
+        b: parse_g1(&raw.b)?,
+        c: parse_g1(&raw.c)?,
+        z: parse_g1(&raw.z)?,
+        t1: parse_g1(&raw.t1)?,
+        t2: parse_g1(&raw.t2)?,
+        t3: parse_g1(&raw.t3)?,
+        wxi: parse_g1(&raw.wxi)?,
+        wxiw: parse_g1(&raw.wxiw)?,
+        eval_a: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_a)?),
+        eval_b: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_b)?),
+        eval_c: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_c)?),
+        eval_s1: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_s1)?),
+        eval_s2: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_s2)?),
+        eval_zw: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_zw)?),
+    })
+}
+
+/// Parse snarkjs public inputs JSON (array of decimal strings) into `Vec<Fr>`.
+pub fn parse_public_inputs_json(json_content: &str) -> Result<Vec<Fr>, VkParseError> {
+    let vals: Vec<String> = serde_json::from_str(json_content)?;
+    vals.iter()
+        .map(|s| Ok(Fr::from_be_bytes(&bigint_to_be32(s)?)))
+        .collect()
+}
+
 /// Generate a verification key Rust file from a JSON file.
 ///
 /// Reads the JSON, generates Rust source code, and writes it to disk.

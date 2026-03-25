@@ -12,7 +12,7 @@ struct Challenges {
     gamma: Fr,
     alpha: Fr,
     xi: Fr,
-    xin: Fr,   // xi^n
+    xin: Fr,    // xi^n
     zh: Fr,     // xi^n - 1
     v: [Fr; 6], // v[1]..v[5], v[0] unused
     u: Fr,
@@ -37,11 +37,7 @@ pub fn verify(vk: &VerificationKey, proof: &Proof, public_inputs: &[Fr]) -> bool
     is_valid_pairing(vk, proof, &challenges, &e, &f)
 }
 
-fn calculate_challenges(
-    vk: &VerificationKey,
-    proof: &Proof,
-    public_inputs: &[Fr],
-) -> Challenges {
+fn calculate_challenges(vk: &VerificationKey, proof: &Proof, public_inputs: &[Fr]) -> Challenges {
     let mut transcript = Transcript::new();
 
     // Round 2: beta
@@ -236,17 +232,13 @@ fn is_valid_pairing(
 
     // B1 = xi * Wxi + u * xi * w * Wxiw + F - E
     let s = challenges.u * challenges.xi * vk.w;
-    let b1 =
-        (proof.wxi * challenges.xi) + (proof.wxiw * s) + *f - *e;
+    let b1 = (proof.wxi * challenges.xi) + (proof.wxiw * s) + *f - *e;
 
     // Check: e(-A1, X_2) * e(B1, G2) == 1
     let neg_a1 = (-a1).into_affine();
     let b1_affine = b1.into_affine();
 
-    let result = Bn254::multi_pairing(
-        [neg_a1, b1_affine],
-        [vk.x_2, G2Affine::generator()],
-    );
+    let result = Bn254::multi_pairing([neg_a1, b1_affine], [vk.x_2, G2Affine::generator()]);
 
     result.is_zero()
 }
@@ -259,12 +251,12 @@ mod tests {
     #[test]
     fn test_plonk_verify_valid_proof() {
         let vk_json: VkJson =
-            serde_json::from_str(include_str!("../../build/verification_key.json"))
+            serde_json::from_str(include_str!("../../../build/verification_key.json"))
                 .expect("failed to parse VK");
-        let proof_json: ProofJson = serde_json::from_str(include_str!("../../build/proof.json"))
+        let proof_json: ProofJson = serde_json::from_str(include_str!("../../../build/proof.json"))
             .expect("failed to parse proof");
         let public_inputs =
-            crate::parse::parse_public_inputs(include_str!("../../build/public.json"));
+            crate::parse::parse_public_inputs(include_str!("../../../build/public.json"));
 
         let vk = vk_json.parse();
         let proof = proof_json.parse();
@@ -275,9 +267,9 @@ mod tests {
     #[test]
     fn test_plonk_verify_invalid_public_input() {
         let vk_json: VkJson =
-            serde_json::from_str(include_str!("../../build/verification_key.json"))
+            serde_json::from_str(include_str!("../../../build/verification_key.json"))
                 .expect("failed to parse VK");
-        let proof_json: ProofJson = serde_json::from_str(include_str!("../../build/proof.json"))
+        let proof_json: ProofJson = serde_json::from_str(include_str!("../../../build/proof.json"))
             .expect("failed to parse proof");
 
         let vk = vk_json.parse();
@@ -285,9 +277,6 @@ mod tests {
 
         // Wrong public input (34 instead of 33)
         let bad_inputs = vec![Fr::from(34u64)];
-        assert!(
-            !verify(&vk, &proof, &bad_inputs),
-            "invalid proof accepted"
-        );
+        assert!(!verify(&vk, &proof, &bad_inputs), "invalid proof accepted");
     }
 }
