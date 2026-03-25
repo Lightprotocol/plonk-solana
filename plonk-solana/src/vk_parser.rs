@@ -24,6 +24,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::fr::Fr;
+use crate::g1::G1;
+use crate::g2::G2;
 use crate::plonk::VerificationKey;
 
 #[derive(Debug, thiserror::Error)]
@@ -83,23 +85,23 @@ fn bigint_to_be32(s: &str) -> Result<[u8; 32], VkParseError> {
     Ok(result)
 }
 
-fn parse_g1(coords: &[String]) -> Result<[u8; 64], VkParseError> {
+fn parse_g1(coords: &[String]) -> Result<G1, VkParseError> {
     if coords.len() != 3 {
         return Err(VkParseError::InvalidData(
             "G1 point must have 3 coordinates".into(),
         ));
     }
     if coords[2] == "0" {
-        return Ok([0u8; 64]);
+        return Ok(G1::ZERO);
     }
     let mut result = [0u8; 64];
     result[..32].copy_from_slice(&bigint_to_be32(&coords[0])?);
     result[32..].copy_from_slice(&bigint_to_be32(&coords[1])?);
-    Ok(result)
+    Ok(G1(result))
 }
 
 /// Parse G2 in EIP-197 big-endian order: x1, x0, y1, y0
-fn parse_g2(coords: &[Vec<String>]) -> Result<[u8; 128], VkParseError> {
+fn parse_g2(coords: &[Vec<String>]) -> Result<G2, VkParseError> {
     if coords.len() != 3 {
         return Err(VkParseError::InvalidData(
             "G2 point must have 3 coordinate pairs".into(),
@@ -110,7 +112,7 @@ fn parse_g2(coords: &[Vec<String>]) -> Result<[u8; 128], VkParseError> {
     result[32..64].copy_from_slice(&bigint_to_be32(&coords[0][0])?);
     result[64..96].copy_from_slice(&bigint_to_be32(&coords[1][1])?);
     result[96..128].copy_from_slice(&bigint_to_be32(&coords[1][0])?);
-    Ok(result)
+    Ok(G2(result))
 }
 
 /// Parse a snarkjs PLONK verification key JSON string into a `VerificationKey`.
@@ -142,12 +144,12 @@ fn format_bytes(bytes: &[u8]) -> String {
         .join(", ")
 }
 
-fn format_g1(bytes: &[u8; 64]) -> String {
-    format!("[{}]", format_bytes(bytes))
+fn format_g1(point: &G1) -> String {
+    format!("G1([{}])", format_bytes(&point.0))
 }
 
-fn format_g2(bytes: &[u8; 128]) -> String {
-    format!("[{}]", format_bytes(bytes))
+fn format_g2(point: &G2) -> String {
+    format!("G2([{}])", format_bytes(&point.0))
 }
 
 fn format_fr(bytes: &[u8; 32]) -> String {
@@ -176,7 +178,7 @@ pub fn parse_vk_json_to_rust_string(json_content: &str) -> Result<String, VkPars
 
     let mut out = String::new();
     out.push_str("pub fn verifying_key() -> plonk_solana::VerificationKey {\n");
-    out.push_str("    use plonk_solana::{VerificationKey, Fr};\n");
+    out.push_str("    use plonk_solana::{VerificationKey, Fr, G1, G2};\n");
     out.push_str("    VerificationKey {\n");
     out.push_str(&format!("        n_public: {},\n", raw.n_public));
     out.push_str(&format!("        power: {},\n", raw.power));
@@ -239,6 +241,7 @@ pub fn parse_proof_json(json_content: &str) -> Result<crate::plonk::Proof, VkPar
         t3: parse_g1(&raw.t3)?,
         wxi: parse_g1(&raw.wxi)?,
         wxiw: parse_g1(&raw.wxiw)?,
+
         eval_a: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_a)?),
         eval_b: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_b)?),
         eval_c: Fr::from_be_bytes(&bigint_to_be32(&raw.eval_c)?),

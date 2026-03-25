@@ -1,5 +1,5 @@
 [workspace]
-members = ["tests/arkworks-verifier", "crates/plonk-solana", "tests/integration-program"]
+members = ["tests/arkworks-verifier", "plonk-solana", "tests/integration-program"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -44,4 +44,4 @@ litesvm = "0.9"
 proptest = "1"
 
 # Internal
-plonk-solana = { path = "crates/plonk-solana" }
+plonk-solana = { path = "plonk-solana" }

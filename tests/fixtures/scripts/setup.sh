@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 # --- Check dependencies ---
@@ -31,7 +31,7 @@ fi
 
 # --- Compile circuit ---
 echo "=== Compiling circom circuit (--O1 for PLONK) ==="
-circom circuits/multiplier.circom --r1cs --wasm --sym -o build --O1
+circom tests/fixtures/circuits/multiplier.circom --r1cs --wasm --sym -o build --O1
 
 # --- PLONK setup (no phase 2 ceremony needed) ---
 echo "=== Running PLONK setup ==="
@@ -65,9 +65,16 @@ npx snarkjs plonk verify \
     build/proof.json
 
 echo ""
+echo "=== Copying artifacts to test fixtures ==="
+cp build/verification_key.json tests/fixtures/data/
+cp build/proof.json tests/fixtures/data/
+cp build/public.json tests/fixtures/data/
+
+echo ""
 echo "=== Setup complete ==="
 echo "Artifacts in build/:"
 echo "  - verification_key.json"
 echo "  - proof.json"
 echo "  - public.json"
 echo "  - multiplier.zkey"
+echo "Test fixtures updated in tests/fixtures/data/"

@@ -3,42 +3,18 @@
 /// All G1 points are 64 bytes big-endian (x || y).
 /// All G2 points are 128 bytes big-endian (x1 || x0 || y1 || y0).
 /// All scalars are 32 bytes big-endian.
-use crate::decompression;
+use ark_bn254::Fq;
+use ark_ff::PrimeField;
 use crate::errors::PlonkError;
 use crate::fr::Fr;
+use crate::g1::{CompressedG1, G1};
+use crate::g2::G2;
 use crate::transcript::Transcript;
 use solana_bn254::prelude::{
     alt_bn128_g1_addition_be, alt_bn128_g1_multiplication_be, alt_bn128_pairing_be,
 };
 
-const G1_ZERO: [u8; 64] = [0u8; 64];
-
-const G1_GENERATOR: [u8; 64] = {
-    let mut g = [0u8; 64];
-    g[31] = 1;
-    g[63] = 2;
-    g
-};
-
-/// G2 generator in big-endian format (EIP-197 order: x1, x0, y1, y0).
-const G2_GENERATOR: [u8; 128] = [
-    0x19, 0x8e, 0x93, 0x93, 0x92, 0x0d, 0x48, 0x3a, 0x72, 0x60, 0xbf, 0xb7, 0x31, 0xfb, 0x5d, 0x25,
-    0xf1, 0xaa, 0x49, 0x33, 0x35, 0xa9, 0xe7, 0x12, 0x97, 0xe4, 0x85, 0xb7, 0xae, 0xf3, 0x12, 0xc2,
-    0x18, 0x00, 0xde, 0xef, 0x12, 0x1f, 0x1e, 0x76, 0x42, 0x6a, 0x00, 0x66, 0x5e, 0x5c, 0x44, 0x79,
-    0x67, 0x43, 0x22, 0xd4, 0xf7, 0x5e, 0xda, 0xdd, 0x46, 0xde, 0xbd, 0x5c, 0xd9, 0x92, 0xf6, 0xed,
-    0x09, 0x06, 0x89, 0xd0, 0x58, 0x5f, 0xf0, 0x75, 0xec, 0x9e, 0x99, 0xad, 0x69, 0x0c, 0x33, 0x95,
-    0xbc, 0x4b, 0x31, 0x33, 0x70, 0xb3, 0x8e, 0xf3, 0x55, 0xac, 0xda, 0xdc, 0xd1, 0x22, 0x97, 0x5b,
-    0x12, 0xc8, 0x5e, 0xa5, 0xdb, 0x8c, 0x6d, 0xeb, 0x4a, 0xab, 0x71, 0x80, 0x8d, 0xcb, 0x40, 0x8f,
-    0xe3, 0xd1, 0xe7, 0x69, 0x0c, 0x43, 0xd3, 0x7b, 0x4c, 0xe6, 0xcc, 0x01, 0x66, 0xfa, 0x7d, 0xaa,
-];
-
-/// BN254 base field modulus (Fq) in big-endian.
-const FQ_MODULUS: [u8; 32] = [
-    0x30, 0x64, 0x4e, 0x72, 0xe1, 0x31, 0xa0, 0x29, 0xb8, 0x50, 0x45, 0xb6, 0x81, 0x81, 0x58, 0x5d,
-    0x97, 0x81, 0x6a, 0x91, 0x68, 0x71, 0xca, 0x8d, 0x3c, 0x20, 0x8c, 0x16, 0xd8, 0x7c, 0xfd, 0x47,
-];
-
-/// Verification key (all points in 64/128-byte big-endian format).
+/// Verification key (G1 points + G2 generator + scalar parameters).
 #[derive(Debug, PartialEq)]
 pub struct VerificationKey {
     pub n_public: usize,
@@ -46,29 +22,29 @@ pub struct VerificationKey {
     pub k1: Fr,
     pub k2: Fr,
     pub w: Fr,
-    pub qm: [u8; 64],
-    pub ql: [u8; 64],
-    pub qr: [u8; 64],
-    pub qo: [u8; 64],
-    pub qc: [u8; 64],
-    pub s1: [u8; 64],
-    pub s2: [u8; 64],
-    pub s3: [u8; 64],
-    pub x_2: [u8; 128],
+    pub qm: G1,
+    pub ql: G1,
+    pub qr: G1,
+    pub qo: G1,
+    pub qc: G1,
+    pub s1: G1,
+    pub s2: G1,
+    pub s3: G1,
+    pub x_2: G2,
 }
 
-/// Proof (G1 points in 64-byte big-endian uncompressed format).
+/// Proof (G1 commitments + scalar evaluations).
 #[derive(Debug, PartialEq)]
 pub struct Proof {
-    pub a: [u8; 64],
-    pub b: [u8; 64],
-    pub c: [u8; 64],
-    pub z: [u8; 64],
-    pub t1: [u8; 64],
-    pub t2: [u8; 64],
-    pub t3: [u8; 64],
-    pub wxi: [u8; 64],
-    pub wxiw: [u8; 64],
+    pub a: G1,
+    pub b: G1,
+    pub c: G1,
+    pub z: G1,
+    pub t1: G1,
+    pub t2: G1,
+    pub t3: G1,
+    pub wxi: G1,
+    pub wxiw: G1,
     pub eval_a: Fr,
     pub eval_b: Fr,
     pub eval_c: Fr,
@@ -81,15 +57,15 @@ pub struct Proof {
 /// 9 * 32 + 6 * 32 = 480 bytes vs 768 bytes uncompressed.
 #[derive(Debug, PartialEq)]
 pub struct CompressedProof {
-    pub a: [u8; 32],
-    pub b: [u8; 32],
-    pub c: [u8; 32],
-    pub z: [u8; 32],
-    pub t1: [u8; 32],
-    pub t2: [u8; 32],
-    pub t3: [u8; 32],
-    pub wxi: [u8; 32],
-    pub wxiw: [u8; 32],
+    pub a: CompressedG1,
+    pub b: CompressedG1,
+    pub c: CompressedG1,
+    pub z: CompressedG1,
+    pub t1: CompressedG1,
+    pub t2: CompressedG1,
+    pub t3: CompressedG1,
+    pub wxi: CompressedG1,
+    pub wxiw: CompressedG1,
     pub eval_a: Fr,
     pub eval_b: Fr,
     pub eval_c: Fr,
@@ -100,44 +76,60 @@ pub struct CompressedProof {
 
 impl CompressedProof {
     pub fn decompress(&self) -> Result<Proof, PlonkError> {
-        Ok(Proof {
-            a: decompression::decompress_g1(&self.a)?,
-            b: decompression::decompress_g1(&self.b)?,
-            c: decompression::decompress_g1(&self.c)?,
-            z: decompression::decompress_g1(&self.z)?,
-            t1: decompression::decompress_g1(&self.t1)?,
-            t2: decompression::decompress_g1(&self.t2)?,
-            t3: decompression::decompress_g1(&self.t3)?,
-            wxi: decompression::decompress_g1(&self.wxi)?,
-            wxiw: decompression::decompress_g1(&self.wxiw)?,
-            eval_a: self.eval_a,
-            eval_b: self.eval_b,
-            eval_c: self.eval_c,
-            eval_s1: self.eval_s1,
-            eval_s2: self.eval_s2,
-            eval_zw: self.eval_zw,
-        })
+        Proof::try_from(self)
     }
 }
 
 impl Proof {
     pub fn compress(&self) -> Result<CompressedProof, PlonkError> {
+        CompressedProof::try_from(self)
+    }
+}
+
+impl TryFrom<&CompressedProof> for Proof {
+    type Error = PlonkError;
+
+    fn try_from(compressed: &CompressedProof) -> Result<Self, PlonkError> {
+        Ok(Proof {
+            a: compressed.a.decompress()?,
+            b: compressed.b.decompress()?,
+            c: compressed.c.decompress()?,
+            z: compressed.z.decompress()?,
+            t1: compressed.t1.decompress()?,
+            t2: compressed.t2.decompress()?,
+            t3: compressed.t3.decompress()?,
+            wxi: compressed.wxi.decompress()?,
+            wxiw: compressed.wxiw.decompress()?,
+            eval_a: compressed.eval_a,
+            eval_b: compressed.eval_b,
+            eval_c: compressed.eval_c,
+            eval_s1: compressed.eval_s1,
+            eval_s2: compressed.eval_s2,
+            eval_zw: compressed.eval_zw,
+        })
+    }
+}
+
+impl TryFrom<&Proof> for CompressedProof {
+    type Error = PlonkError;
+
+    fn try_from(proof: &Proof) -> Result<Self, PlonkError> {
         Ok(CompressedProof {
-            a: decompression::compress_g1(&self.a)?,
-            b: decompression::compress_g1(&self.b)?,
-            c: decompression::compress_g1(&self.c)?,
-            z: decompression::compress_g1(&self.z)?,
-            t1: decompression::compress_g1(&self.t1)?,
-            t2: decompression::compress_g1(&self.t2)?,
-            t3: decompression::compress_g1(&self.t3)?,
-            wxi: decompression::compress_g1(&self.wxi)?,
-            wxiw: decompression::compress_g1(&self.wxiw)?,
-            eval_a: self.eval_a,
-            eval_b: self.eval_b,
-            eval_c: self.eval_c,
-            eval_s1: self.eval_s1,
-            eval_s2: self.eval_s2,
-            eval_zw: self.eval_zw,
+            a: proof.a.compress()?,
+            b: proof.b.compress()?,
+            c: proof.c.compress()?,
+            z: proof.z.compress()?,
+            t1: proof.t1.compress()?,
+            t2: proof.t2.compress()?,
+            t3: proof.t3.compress()?,
+            wxi: proof.wxi.compress()?,
+            wxiw: proof.wxiw.compress()?,
+            eval_a: proof.eval_a,
+            eval_b: proof.eval_b,
+            eval_c: proof.eval_c,
+            eval_s1: proof.eval_s1,
+            eval_s2: proof.eval_s2,
+            eval_zw: proof.eval_zw,
         })
     }
 }
@@ -153,40 +145,40 @@ struct Challenges {
     u: Fr,
 }
 
-fn g1_add(a: &[u8; 64], b: &[u8; 64]) -> Result<[u8; 64], PlonkError> {
-    let input = [a.as_slice(), b.as_slice()].concat();
+fn g1_add(a: &G1, b: &G1) -> Result<G1, PlonkError> {
+    let input = [a.0.as_slice(), b.0.as_slice()].concat();
     let result = alt_bn128_g1_addition_be(&input).map_err(|_| PlonkError::G1AdditionFailed)?;
-    result.try_into().map_err(|_| PlonkError::G1AdditionFailed)
+    let bytes: [u8; 64] = result.try_into().map_err(|_| PlonkError::G1AdditionFailed)?;
+    Ok(G1(bytes))
 }
 
-fn g1_sub(a: &[u8; 64], b: &[u8; 64]) -> Result<[u8; 64], PlonkError> {
+fn g1_sub(a: &G1, b: &G1) -> Result<G1, PlonkError> {
     let neg_b = g1_neg(b);
     g1_add(a, &neg_b)
 }
 
-fn g1_neg(p: &[u8; 64]) -> [u8; 64] {
-    if *p == G1_ZERO {
-        return G1_ZERO;
+fn g1_neg(p: &G1) -> G1 {
+    if *p == G1::ZERO {
+        return G1::ZERO;
     }
     let mut result = [0u8; 64];
-    result[..32].copy_from_slice(&p[..32]);
-    let y = &p[32..64];
-    let mut borrow: u16 = 0;
-    for i in (0..32).rev() {
-        let diff = (FQ_MODULUS[i] as u16)
-            .wrapping_sub(y[i] as u16)
-            .wrapping_sub(borrow);
-        result[32 + i] = diff as u8;
-        borrow = if diff > 255 { 1 } else { 0 };
-    }
-    result
+    result[..32].copy_from_slice(&p.0[..32]);
+    // Deserialize y as Fq (big-endian), negate, serialize back.
+    let y = Fq::from_be_bytes_mod_order(&p.0[32..64]);
+    let neg_y = -y;
+    let n: num_bigint::BigUint = neg_y.into();
+    let bytes = n.to_bytes_be();
+    let start = 32usize.saturating_sub(bytes.len());
+    result[32 + start..64].copy_from_slice(&bytes);
+    G1(result)
 }
 
-fn g1_mul(point: &[u8; 64], scalar: &Fr) -> Result<[u8; 64], PlonkError> {
+fn g1_mul(point: &G1, scalar: &Fr) -> Result<G1, PlonkError> {
     let s = scalar.to_be_bytes();
-    let input = [point.as_slice(), s.as_slice()].concat();
+    let input = [point.0.as_slice(), s.as_slice()].concat();
     let result = alt_bn128_g1_multiplication_be(&input).map_err(|_| PlonkError::G1MulFailed)?;
-    result.try_into().map_err(|_| PlonkError::G1MulFailed)
+    let bytes: [u8; 64] = result.try_into().map_err(|_| PlonkError::G1MulFailed)?;
+    Ok(G1(bytes))
 }
 
 /// Verify a PLONK proof against a verification key and public inputs.
@@ -336,7 +328,7 @@ fn calculate_d(
     proof: &Proof,
     ch: &Challenges,
     l1: &Fr,
-) -> Result<[u8; 64], PlonkError> {
+) -> Result<G1, PlonkError> {
     let ab = proof.eval_a * proof.eval_b;
     let d1 = {
         let t0 = g1_mul(&vk.qm, &ab)?;
@@ -379,8 +371,8 @@ fn calculate_f(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,
-    d: &[u8; 64],
-) -> Result<[u8; 64], PlonkError> {
+    d: &G1,
+) -> Result<G1, PlonkError> {
     let t1 = g1_mul(&proof.a, &ch.v[1])?;
     let t2 = g1_mul(&proof.b, &ch.v[2])?;
     let t3 = g1_mul(&proof.c, &ch.v[3])?;
@@ -394,7 +386,7 @@ fn calculate_f(
     g1_add(&r, &t5)
 }
 
-fn calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<[u8; 64], PlonkError> {
+fn calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<G1, PlonkError> {
     let scalar = -*r0
         + ch.v[1] * proof.eval_a
         + ch.v[2] * proof.eval_b
@@ -403,15 +395,15 @@ fn calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<[u8; 64], Plon
         + ch.v[5] * proof.eval_s2
         + ch.u * proof.eval_zw;
 
-    g1_mul(&G1_GENERATOR, &scalar)
+    g1_mul(&G1::GENERATOR, &scalar)
 }
 
 fn is_valid_pairing(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,
-    e: &[u8; 64],
-    f: &[u8; 64],
+    e: &G1,
+    f: &G1,
 ) -> Result<bool, PlonkError> {
     let u_wxiw = g1_mul(&proof.wxiw, &ch.u)?;
     let a1 = g1_add(&proof.wxi, &u_wxiw)?;
@@ -426,10 +418,10 @@ fn is_valid_pairing(
     let neg_a1 = g1_neg(&a1);
 
     let pairing_input = [
-        neg_a1.as_slice(),
-        vk.x_2.as_slice(),
-        b1.as_slice(),
-        G2_GENERATOR.as_slice(),
+        neg_a1.0.as_slice(),
+        vk.x_2.0.as_slice(),
+        b1.0.as_slice(),
+        G2::GENERATOR.0.as_slice(),
     ]
     .concat();
 
@@ -443,15 +435,15 @@ mod tests {
     use crate::vk_parser;
 
     fn test_vk() -> VerificationKey {
-        vk_parser::parse_vk_json(include_str!("../test-fixtures/verification_key.json")).unwrap()
+        vk_parser::parse_vk_json(include_str!("../../tests/fixtures/data/verification_key.json")).unwrap()
     }
 
     fn test_proof() -> Proof {
-        vk_parser::parse_proof_json(include_str!("../test-fixtures/proof.json")).unwrap()
+        vk_parser::parse_proof_json(include_str!("../../tests/fixtures/data/proof.json")).unwrap()
     }
 
     fn test_public_inputs() -> Vec<Fr> {
-        vk_parser::parse_public_inputs_json(include_str!("../test-fixtures/public.json")).unwrap()
+        vk_parser::parse_public_inputs_json(include_str!("../../tests/fixtures/data/public.json")).unwrap()
     }
 
     #[test]

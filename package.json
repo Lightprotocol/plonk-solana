@@ -2,8 +2,8 @@
   "name": "plonk-solana",
   "private": true,
   "scripts": {
-    "setup": "./scripts/setup.sh",
-    "clean": "./scripts/clean.sh"
+    "build-test-circuit": "./tests/fixtures/scripts/setup.sh",
+    "clean": "./tests/fixtures/scripts/clean.sh"
   },
   "dependencies": {
     "snarkjs": "^0.7.0"

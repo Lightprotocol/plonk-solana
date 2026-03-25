@@ -4,32 +4,32 @@ Experiment to build a PLONK proof verifier for Solana, similar to groth16-solana
 
 ## Project Structure
 
-- `circuits/` - Circom circuit definitions (compile with `--O1` for PLONK)
-- `scripts/` - Setup and clean scripts
-- `verifier/` - Pure Rust PLONK verifier using arkworks (off-chain reference)
-- `programs/plonk-verifier/` - Solana-compatible PLONK verifier using solana-bn254 syscalls
+- `plonk-solana/` - Main PLONK verifier library (solana-bn254 syscalls)
+- `tests/arkworks-verifier/` - Pure Rust PLONK verifier using arkworks (off-chain reference)
+- `tests/integration-program/` - Solana on-chain verifier with LiteSVM tests
+- `tests/fixtures/circuits/` - Circom circuit definitions (compile with `--O1` for PLONK)
+- `tests/fixtures/scripts/` - Circuit build and clean scripts
+- `tests/fixtures/data/` - Shared test artifacts (verification_key.json, proof.json, public.json)
 
 ## Setup
 
 ```bash
-npm run setup    # compile circuit, PLONK setup, generate sample proof
-cargo test -p plonk-verifier          # test off-chain verifier
-cargo test -p plonk-verifier-program  # test on-chain verifier
+just build-test-circuit   # compile circuit, PLONK setup, generate sample proof
+cargo test -p plonk-solana            # test main verifier
+cargo test -p plonk-verifier          # test arkworks reference verifier
 ```
 
 ## Current State
 
 - Minimal circom multiplier circuit (a * b = c)
-- snarkjs PLONK proof generation (setup script)
+- snarkjs PLONK proof generation (`just build-test-circuit`)
 - Two independent Rust PLONK verifiers that both pass:
-  1. `verifier/` - arkworks-based, pure Rust
-  2. `programs/plonk-verifier/` - solana-bn254 syscall-based, Solana-compatible
-- The Solana program entry point is not yet wired up (no process_instruction)
+  1. `tests/arkworks-verifier/` - arkworks-based, pure Rust
+  2. `plonk-solana/` - solana-bn254 syscall-based, Solana-compatible
+- On-chain integration program with LiteSVM tests (`tests/integration-program/`)
 
 ## Future Work
 
-- Add Solana program entry point (process_instruction) to programs/plonk-verifier
-- Deploy and test on localnet with cargo test-sbf
 - Measure compute unit usage on-chain
 - Optimize for CU efficiency (reduce G1 scalar multiplications)
 - Consider removing arkworks dependency from on-chain code for smaller binary size
@@ -52,6 +52,7 @@ cargo test -p plonk-verifier-program  # test on-chain verifier
 
 ## Testing
 
-- Off-chain: `cargo test -p plonk-verifier`
-- On-chain lib: `cargo test -p plonk-verifier-program`
-- Proof artifacts must exist in `build/` (run `npm run setup` first)
+- Main verifier: `cargo test -p plonk-solana`
+- Arkworks reference: `cargo test -p plonk-verifier`
+- On-chain integration: `cargo test-sbf --manifest-path tests/integration-program/Cargo.toml`
+- To regenerate proof artifacts: `just build-test-circuit` (requires node, npm, circom)

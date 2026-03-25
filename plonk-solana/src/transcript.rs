@@ -8,6 +8,7 @@
 /// - Challenge: keccak256(buffer) -> reduce mod scalar field order
 use crate::errors::PlonkError;
 use crate::fr::Fr;
+use crate::g1::G1;
 use light_hasher::{Hasher, Keccak};
 
 enum Entry {
@@ -28,8 +29,8 @@ impl Transcript {
         self.data.clear();
     }
 
-    pub fn add_point(&mut self, p: &[u8; 64]) {
-        self.data.push(Entry::Point(*p));
+    pub fn add_point(&mut self, p: &G1) {
+        self.data.push(Entry::Point(p.0));
     }
 
     pub fn add_scalar(&mut self, s: &Fr) {

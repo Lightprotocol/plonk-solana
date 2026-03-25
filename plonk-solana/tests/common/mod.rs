@@ -1,5 +1,5 @@
 use num_bigint::BigUint;
-use plonk_solana::{Fr, Proof, VerificationKey};
+use plonk_solana::{Fr, Proof, VerificationKey, G1};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -39,26 +39,26 @@ pub fn str_to_be32(s: &str) -> [u8; 32] {
     result
 }
 
-pub fn parse_g1_be(coords: &[String]) -> [u8; 64] {
+pub fn parse_g1_be(coords: &[String]) -> G1 {
     if coords[2] == "0" {
-        return [0u8; 64];
+        return G1::ZERO;
     }
     let mut result = [0u8; 64];
     result[..32].copy_from_slice(&str_to_be32(&coords[0]));
     result[32..].copy_from_slice(&str_to_be32(&coords[1]));
-    result
+    G1(result)
 }
 
 pub fn load_test_vk() -> VerificationKey {
     plonk_solana::vk_parser::parse_vk_json(include_str!(
-        "../../test-fixtures/verification_key.json"
+        "../../../tests/fixtures/data/verification_key.json"
     ))
     .unwrap()
 }
 
 pub fn load_test_proof() -> Proof {
     let p: ProofJson =
-        serde_json::from_str(include_str!("../../test-fixtures/proof.json")).unwrap();
+        serde_json::from_str(include_str!("../../../tests/fixtures/data/proof.json")).unwrap();
     Proof {
         a: parse_g1_be(&p.a),
         b: parse_g1_be(&p.b),
@@ -80,7 +80,7 @@ pub fn load_test_proof() -> Proof {
 
 pub fn load_test_public_inputs() -> Vec<Fr> {
     let vals: Vec<String> =
-        serde_json::from_str(include_str!("../../test-fixtures/public.json")).unwrap();
+        serde_json::from_str(include_str!("../../../tests/fixtures/data/public.json")).unwrap();
     vals.iter()
         .map(|s| Fr::from_be_bytes(&str_to_be32(s)))
         .collect()

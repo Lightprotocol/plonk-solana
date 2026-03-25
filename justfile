@@ -40,10 +40,10 @@ fix: format
     cargo clippy --workspace --all-targets --all-features --fix --allow-dirty -- -D warnings
 
 # Compile circom circuit + generate PLONK proof (requires node, npm, circom)
-setup:
-    ./scripts/setup.sh
+build-test-circuit:
+    ./tests/fixtures/scripts/setup.sh
 
 # Remove build artifacts
 clean:
-    ./scripts/clean.sh
+    ./tests/fixtures/scripts/clean.sh
     cargo clean

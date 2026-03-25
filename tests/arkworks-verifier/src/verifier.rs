@@ -251,12 +251,12 @@ mod tests {
     #[test]
     fn test_plonk_verify_valid_proof() {
         let vk_json: VkJson =
-            serde_json::from_str(include_str!("../../../build/verification_key.json"))
+            serde_json::from_str(include_str!("../../fixtures/data/verification_key.json"))
                 .expect("failed to parse VK");
-        let proof_json: ProofJson = serde_json::from_str(include_str!("../../../build/proof.json"))
+        let proof_json: ProofJson = serde_json::from_str(include_str!("../../fixtures/data/proof.json"))
             .expect("failed to parse proof");
         let public_inputs =
-            crate::parse::parse_public_inputs(include_str!("../../../build/public.json"));
+            crate::parse::parse_public_inputs(include_str!("../../fixtures/data/public.json"));
 
         let vk = vk_json.parse();
         let proof = proof_json.parse();
@@ -267,9 +267,9 @@ mod tests {
     #[test]
     fn test_plonk_verify_invalid_public_input() {
         let vk_json: VkJson =
-            serde_json::from_str(include_str!("../../../build/verification_key.json"))
+            serde_json::from_str(include_str!("../../fixtures/data/verification_key.json"))
                 .expect("failed to parse VK");
-        let proof_json: ProofJson = serde_json::from_str(include_str!("../../../build/proof.json"))
+        let proof_json: ProofJson = serde_json::from_str(include_str!("../../fixtures/data/proof.json"))
             .expect("failed to parse proof");
 
         let vk = vk_json.parse();
