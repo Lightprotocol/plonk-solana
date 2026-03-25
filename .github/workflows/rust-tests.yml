@@ -43,6 +43,9 @@ jobs:
       - name: Build test circuit
         run: just build-test-circuit
 
+      - name: Build SBF program
+        run: just build-sbf
+
       - name: Lint
         run: just lint
 
