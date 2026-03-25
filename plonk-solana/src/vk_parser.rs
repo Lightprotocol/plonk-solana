@@ -43,7 +43,7 @@ pub enum VkParseError {
 #[derive(Deserialize)]
 struct RawVk {
     #[serde(rename = "nPublic")]
-    n_public: usize,
+    n_public: u32,
     power: u32,
     k1: String,
     k2: String,

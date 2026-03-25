@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-vk = ["serde", "serde_json"]
+bytemuck = ["dep:bytemuck", "dep:bytemuck_derive"]
+zerocopy = ["dep:zerocopy"]
+borsh = ["dep:borsh"]
+serde = ["dep:serde"]
+vk = ["serde", "dep:serde_json"]
 
 [dependencies]
 ark-bn254.workspace = true
@@ -13,10 +17,15 @@ num-bigint.workspace = true
 solana-bn254.workspace = true
 light-hasher.workspace = true
 thiserror.workspace = true
+borsh = { workspace = true, optional = true }
+bytemuck = { workspace = true, optional = true }
+bytemuck_derive = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+zerocopy = { workspace = true, optional = true }
 
 [dev-dependencies]
+borsh.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 proptest.workspace = true

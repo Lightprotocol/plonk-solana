@@ -1725,6 +1725,9 @@ version = "0.1.0"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
+ "borsh 1.6.1",
+ "bytemuck",
+ "bytemuck_derive",
  "light-hasher",
  "num-bigint 0.4.6",
  "proptest",
@@ -1732,6 +1735,7 @@ dependencies = [
  "serde_json",
  "solana-bn254",
  "thiserror 2.0.18",
+ "zerocopy",
 ]
 
 [[package]]

@@ -72,3 +72,55 @@ impl From<u64> for Fr {
         Self(ArkFr::from(v))
     }
 }
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for Fr {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(&self.to_be_bytes())
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for Fr {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut buf = [0u8; 32];
+        reader.read_exact(&mut buf)?;
+        Ok(Fr::from_be_bytes(&buf))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Fr {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(&self.to_be_bytes())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Fr {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct FrVisitor;
+        impl<'de> serde::de::Visitor<'de> for FrVisitor {
+            type Value = Fr;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("32 bytes")
+            }
+            fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Fr, E> {
+                let bytes: [u8; 32] = v.try_into().map_err(|_| {
+                    E::invalid_length(v.len(), &"32 bytes")
+                })?;
+                Ok(Fr::from_be_bytes(&bytes))
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Fr, A::Error> {
+                let mut bytes = [0u8; 32];
+                for (i, b) in bytes.iter_mut().enumerate() {
+                    *b = seq.next_element()?.ok_or_else(|| {
+                        serde::de::Error::invalid_length(i, &"32 bytes")
+                    })?;
+                }
+                Ok(Fr::from_be_bytes(&bytes))
+            }
+        }
+        deserializer.deserialize_bytes(FrVisitor)
+    }
+}

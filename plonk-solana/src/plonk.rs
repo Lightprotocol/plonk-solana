@@ -16,8 +16,10 @@ use solana_bn254::prelude::{
 
 /// Verification key (G1 points + G2 generator + scalar parameters).
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VerificationKey {
-    pub n_public: usize,
+    pub n_public: u32,
     pub power: u32,
     pub k1: Fr,
     pub k2: Fr,
@@ -35,6 +37,8 @@ pub struct VerificationKey {
 
 /// Proof (G1 commitments + scalar evaluations).
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Proof {
     pub a: G1,
     pub b: G1,
@@ -56,6 +60,8 @@ pub struct Proof {
 /// Compressed proof (G1 points as 32 bytes each).
 /// 9 * 32 + 6 * 32 = 480 bytes vs 768 bytes uncompressed.
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CompressedProof {
     pub a: CompressedG1,
     pub b: CompressedG1,
@@ -183,7 +189,7 @@ fn g1_mul(point: &G1, scalar: &Fr) -> Result<G1, PlonkError> {
 
 /// Verify a PLONK proof against a verification key and public inputs.
 pub fn verify(vk: &VerificationKey, proof: &Proof, public_inputs: &[Fr]) -> Result<(), PlonkError> {
-    if public_inputs.len() != vk.n_public {
+    if public_inputs.len() != vk.n_public as usize {
         return Err(PlonkError::InvalidPublicInputsLength);
     }
 
@@ -291,7 +297,7 @@ fn calculate_lagrange_evaluations(
     let mut l = vec![Fr::zero()];
     let mut w = Fr::one();
 
-    let count = std::cmp::max(1, vk.n_public);
+    let count = std::cmp::max(1, vk.n_public as usize);
     for _ in 0..count {
         let num = w * ch.zh;
         let den = n * (ch.xi - w);
