@@ -89,9 +89,11 @@ fn send_verify_tx(
 fn test_plonk_verify_on_chain_valid_proof() {
     let (mut svm, payer) = setup_svm();
 
-    let proof = vk_parser::parse_proof_json(include_str!("../../fixtures/data/proof.json")).unwrap();
+    let proof =
+        vk_parser::parse_proof_json(include_str!("../../fixtures/data/proof.json")).unwrap();
     let public_inputs =
-        vk_parser::parse_public_inputs_json(include_str!("../../fixtures/data/public.json")).unwrap();
+        vk_parser::parse_public_inputs_json(include_str!("../../fixtures/data/public.json"))
+            .unwrap();
 
     let result = send_verify_tx(
         &mut svm,
@@ -109,7 +111,8 @@ fn test_plonk_verify_on_chain_valid_proof() {
 fn test_plonk_verify_on_chain_invalid_proof() {
     let (mut svm, payer) = setup_svm();
 
-    let proof = vk_parser::parse_proof_json(include_str!("../../fixtures/data/proof.json")).unwrap();
+    let proof =
+        vk_parser::parse_proof_json(include_str!("../../fixtures/data/proof.json")).unwrap();
     let bad_inputs = vec![Fr::from(99u64)];
 
     let result = send_verify_tx(

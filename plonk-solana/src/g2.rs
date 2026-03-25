@@ -1,8 +1,23 @@
 /// G2 point on BN254: 128 bytes big-endian (EIP-197 order: x1 || x0 || y1 || y0).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck_derive::Pod, bytemuck_derive::Zeroable))]
-#[cfg_attr(feature = "zerocopy", derive(zerocopy::FromBytes, zerocopy::IntoBytes, zerocopy::Immutable, zerocopy::KnownLayout, zerocopy::Unaligned))]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(
+    feature = "bytemuck",
+    derive(bytemuck_derive::Pod, bytemuck_derive::Zeroable)
+)]
+#[cfg_attr(
+    feature = "zerocopy",
+    derive(
+        zerocopy::FromBytes,
+        zerocopy::IntoBytes,
+        zerocopy::Immutable,
+        zerocopy::KnownLayout,
+        zerocopy::Unaligned
+    )
+)]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[repr(transparent)]
 pub struct G2(pub [u8; 128]);
 
@@ -57,17 +72,17 @@ impl<'de> serde::Deserialize<'de> for G2 {
                 f.write_str("128 bytes")
             }
             fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<G2, E> {
-                let bytes: [u8; 128] = v.try_into().map_err(|_| {
-                    E::invalid_length(v.len(), &"128 bytes")
-                })?;
+                let bytes: [u8; 128] = v
+                    .try_into()
+                    .map_err(|_| E::invalid_length(v.len(), &"128 bytes"))?;
                 Ok(G2(bytes))
             }
             fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<G2, A::Error> {
                 let mut bytes = [0u8; 128];
                 for (i, b) in bytes.iter_mut().enumerate() {
-                    *b = seq.next_element()?.ok_or_else(|| {
-                        serde::de::Error::invalid_length(i, &"128 bytes")
-                    })?;
+                    *b = seq
+                        .next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(i, &"128 bytes"))?;
                 }
                 Ok(G2(bytes))
             }

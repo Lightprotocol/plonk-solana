@@ -27,6 +27,7 @@ runs:
       with:
         toolchain: ${{ inputs.rust-toolchain }}
         components: clippy, rustfmt
+        cache: false
 
     - name: Cache Solana CLI
       if: inputs.solana-version != ''

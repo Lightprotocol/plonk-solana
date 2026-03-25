@@ -38,6 +38,9 @@ impl Transcript {
     }
 
     pub fn get_challenge(&self) -> Result<Fr, PlonkError> {
+        if self.data.is_empty() {
+            return Err(PlonkError::EmptyTranscript);
+        }
         let mut size = 0;
         for entry in &self.data {
             match entry {

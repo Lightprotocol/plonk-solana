@@ -1,3 +1,8 @@
+use crate::errors::PlonkError;
+use crate::fr::Fr;
+use crate::g1::{CompressedG1, G1};
+use crate::g2::G2;
+use crate::transcript::Transcript;
 /// PLONK verifier using solana-bn254 syscalls for curve operations.
 ///
 /// All G1 points are 64 bytes big-endian (x || y).
@@ -5,18 +10,16 @@
 /// All scalars are 32 bytes big-endian.
 use ark_bn254::Fq;
 use ark_ff::PrimeField as _;
-use crate::errors::PlonkError;
-use crate::fr::Fr;
-use crate::g1::{CompressedG1, G1};
-use crate::g2::G2;
-use crate::transcript::Transcript;
 use solana_bn254::prelude::{
     alt_bn128_g1_addition_be, alt_bn128_g1_multiplication_be, alt_bn128_pairing_be,
 };
 
 /// Verification key (G1 points + G2 generator + scalar parameters).
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VerificationKey {
     pub n_public: u32,
@@ -37,7 +40,10 @@ pub struct VerificationKey {
 
 /// Proof (G1 commitments + scalar evaluations).
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Proof {
     pub a: G1,
@@ -60,7 +66,10 @@ pub struct Proof {
 /// Compressed proof (G1 points as 32 bytes each).
 /// 9 * 32 + 6 * 32 = 480 bytes vs 768 bytes uncompressed.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(
+    feature = "borsh",
+    derive(borsh::BorshSerialize, borsh::BorshDeserialize)
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CompressedProof {
     pub a: CompressedG1,
@@ -154,7 +163,9 @@ struct Challenges {
 fn g1_add(a: &G1, b: &G1) -> Result<G1, PlonkError> {
     let input = [a.0.as_slice(), b.0.as_slice()].concat();
     let result = alt_bn128_g1_addition_be(&input).map_err(|_| PlonkError::G1AdditionFailed)?;
-    let bytes: [u8; 64] = result.try_into().map_err(|_| PlonkError::G1AdditionFailed)?;
+    let bytes: [u8; 64] = result
+        .try_into()
+        .map_err(|_| PlonkError::G1AdditionFailed)?;
     Ok(G1(bytes))
 }
 
@@ -467,7 +478,10 @@ mod tests {
     use crate::vk_parser;
 
     fn test_vk() -> VerificationKey {
-        vk_parser::parse_vk_json(include_str!("../../tests/fixtures/data/verification_key.json")).unwrap()
+        vk_parser::parse_vk_json(include_str!(
+            "../../tests/fixtures/data/verification_key.json"
+        ))
+        .unwrap()
     }
 
     fn test_proof() -> Proof {
@@ -475,11 +489,15 @@ mod tests {
     }
 
     fn test_public_inputs_fr() -> Vec<Fr> {
-        vk_parser::parse_public_inputs_json(include_str!("../../tests/fixtures/data/public.json")).unwrap()
+        vk_parser::parse_public_inputs_json(include_str!("../../tests/fixtures/data/public.json"))
+            .unwrap()
     }
 
     fn test_public_inputs_bytes() -> Vec<[u8; 32]> {
-        test_public_inputs_fr().iter().map(|f| f.to_be_bytes()).collect()
+        test_public_inputs_fr()
+            .iter()
+            .map(|f| f.to_be_bytes())
+            .collect()
     }
 
     #[test]

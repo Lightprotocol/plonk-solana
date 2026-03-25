@@ -22,6 +22,8 @@ pub enum PlonkError {
     KeccakFailed,
     #[error("Public input greater than field size")]
     PublicInputGreaterThanFieldSize,
+    #[error("Transcript has no data")]
+    EmptyTranscript,
 }
 
 impl From<PlonkError> for u32 {
@@ -37,6 +39,7 @@ impl From<PlonkError> for u32 {
             PlonkError::LagrangeDivisionByZero => 7,
             PlonkError::KeccakFailed => 8,
             PlonkError::PublicInputGreaterThanFieldSize => 9,
+            PlonkError::EmptyTranscript => 10,
         }
     }
 }

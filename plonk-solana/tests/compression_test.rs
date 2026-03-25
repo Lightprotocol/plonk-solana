@@ -4,7 +4,6 @@ mod common;
 
 use plonk_solana::{verify, CompressedG1, PlonkError, G1};
 
-
 #[test]
 fn test_compression_roundtrip() {
     let proof = common::load_test_proof();

@@ -253,8 +253,9 @@ mod tests {
         let vk_json: VkJson =
             serde_json::from_str(include_str!("../../fixtures/data/verification_key.json"))
                 .expect("failed to parse VK");
-        let proof_json: ProofJson = serde_json::from_str(include_str!("../../fixtures/data/proof.json"))
-            .expect("failed to parse proof");
+        let proof_json: ProofJson =
+            serde_json::from_str(include_str!("../../fixtures/data/proof.json"))
+                .expect("failed to parse proof");
         let public_inputs =
             crate::parse::parse_public_inputs(include_str!("../../fixtures/data/public.json"));
 
@@ -269,8 +270,9 @@ mod tests {
         let vk_json: VkJson =
             serde_json::from_str(include_str!("../../fixtures/data/verification_key.json"))
                 .expect("failed to parse VK");
-        let proof_json: ProofJson = serde_json::from_str(include_str!("../../fixtures/data/proof.json"))
-            .expect("failed to parse proof");
+        let proof_json: ProofJson =
+            serde_json::from_str(include_str!("../../fixtures/data/proof.json"))
+                .expect("failed to parse proof");
 
         let vk = vk_json.parse();
         let proof = proof_json.parse();

@@ -114,17 +114,17 @@ impl<'de> serde::Deserialize<'de> for Fr {
                 f.write_str("32 bytes")
             }
             fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Fr, E> {
-                let bytes: [u8; 32] = v.try_into().map_err(|_| {
-                    E::invalid_length(v.len(), &"32 bytes")
-                })?;
+                let bytes: [u8; 32] = v
+                    .try_into()
+                    .map_err(|_| E::invalid_length(v.len(), &"32 bytes"))?;
                 Ok(Fr::from_be_bytes(&bytes))
             }
             fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Fr, A::Error> {
                 let mut bytes = [0u8; 32];
                 for (i, b) in bytes.iter_mut().enumerate() {
-                    *b = seq.next_element()?.ok_or_else(|| {
-                        serde::de::Error::invalid_length(i, &"32 bytes")
-                    })?;
+                    *b = seq
+                        .next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(i, &"32 bytes"))?;
                 }
                 Ok(Fr::from_be_bytes(&bytes))
             }
