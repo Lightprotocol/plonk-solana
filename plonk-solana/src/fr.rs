@@ -4,11 +4,11 @@ use ark_bn254::Fr as ArkFr;
 use ark_ff::{BigInt, Field, One, PrimeField, Zero};
 
 /// Convert 32 big-endian bytes to ark BigInt<4> (little-endian u64 limbs).
-pub(crate) fn bigint_from_be_bytes(bytes: &[u8; 32]) -> BigInt<4> {
+pub fn bigint_from_be_bytes(bytes: &[u8; 32]) -> BigInt<4> {
     let mut limbs = [0u64; 4];
-    for i in 0..4 {
+    for (i, limb) in limbs.iter_mut().enumerate() {
         let offset = 24 - i * 8;
-        limbs[i] = u64::from_be_bytes([
+        *limb = u64::from_be_bytes([
             bytes[offset],
             bytes[offset + 1],
             bytes[offset + 2],
@@ -23,7 +23,7 @@ pub(crate) fn bigint_from_be_bytes(bytes: &[u8; 32]) -> BigInt<4> {
 }
 
 /// Convert ark BigInt<4> to 32 big-endian bytes.
-pub(crate) fn bigint_to_be_bytes(n: &BigInt<4>) -> [u8; 32] {
+pub fn bigint_to_be_bytes(n: &BigInt<4>) -> [u8; 32] {
     let mut bytes = [0u8; 32];
     for i in 0..4 {
         let offset = 24 - i * 8;

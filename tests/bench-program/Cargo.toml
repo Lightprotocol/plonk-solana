@@ -1,0 +1,39 @@
+[package]
+name = "bench-program"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = [
+    "cfg(target_os, values(\"solana\"))",
+    "cfg(feature, values(\"custom-heap\", \"custom-panic\", \"no-entrypoint\", \"profile-heap\"))",
+]
+
+[features]
+no-entrypoint = []
+profile-program = []
+default = ["profile-program"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+plonk-solana = { workspace = true, features = ["bench"] }
+pinocchio.workspace = true
+light-program-profiler = { git = "https://github.com/Lightprotocol/light-program-profiler", features = ["profile-program", "inline"] }
+
+[build-dependencies]
+plonk-solana = { workspace = true, features = ["vk"] }
+
+[dev-dependencies]
+plonk-solana = { workspace = true, features = ["vk", "bench"] }
+litesvm.workspace = true
+solana-compute-budget.workspace = true
+solana-keypair.workspace = true
+solana-signer.workspace = true
+solana-instruction.workspace = true
+solana-message.workspace = true
+solana-transaction.workspace = true
+solana-pubkey.workspace = true

@@ -16,6 +16,7 @@ zerocopy = ["dep:zerocopy"]
 borsh = ["dep:borsh"]
 serde = ["dep:serde"]
 vk = ["serde", "dep:serde_json", "dep:num-bigint"]
+bench = []
 
 [dependencies]
 ark-bn254.workspace = true

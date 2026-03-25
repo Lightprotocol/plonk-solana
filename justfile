@@ -51,6 +51,14 @@ fix: format
 build-test-circuit:
     ./tests/fixtures/scripts/setup.sh
 
+# Build SBF bench program and run CU benchmarks
+bench: build-sbf-bench
+    cargo test-sbf --manifest-path tests/bench-program/Cargo.toml -- --nocapture
+
+# Build the bench program for SBF
+build-sbf-bench:
+    cargo build-sbf --manifest-path tests/bench-program/Cargo.toml
+
 # Remove build artifacts
 clean:
     ./tests/fixtures/scripts/clean.sh

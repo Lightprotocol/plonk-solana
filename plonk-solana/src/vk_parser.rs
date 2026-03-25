@@ -20,7 +20,7 @@
 //! ```
 extern crate std;
 use std::format;
-use std::string::String;
+use std::string::{String, ToString};
 use std::vec::Vec;
 
 use num_bigint::BigUint;
@@ -262,6 +262,98 @@ pub fn parse_public_inputs_json(json_content: &str) -> Result<Vec<Fr>, VkParseEr
     vals.iter()
         .map(|s| Ok(Fr::from_be_bytes_unchecked(&bigint_to_be32(s)?)))
         .collect()
+}
+
+/// Parse a snarkjs PLONK proof JSON and generate Rust source code.
+pub fn parse_proof_json_to_rust_string(json_content: &str) -> Result<String, VkParseError> {
+    let proof = parse_proof_json(json_content)?;
+    let mut out = String::new();
+    out.push_str("pub fn test_proof() -> plonk_solana::Proof {\n");
+    out.push_str("    use plonk_solana::{Proof, Fr, G1};\n");
+    out.push_str("    Proof {\n");
+    for (name, point) in [
+        ("a", &proof.a),
+        ("b", &proof.b),
+        ("c", &proof.c),
+        ("z", &proof.z),
+        ("t1", &proof.t1),
+        ("t2", &proof.t2),
+        ("t3", &proof.t3),
+        ("wxi", &proof.wxi),
+        ("wxiw", &proof.wxiw),
+    ] {
+        out.push_str(&format!("        {}: {},\n", name, format_g1(point)));
+    }
+    for (name, scalar) in [
+        ("eval_a", &proof.eval_a),
+        ("eval_b", &proof.eval_b),
+        ("eval_c", &proof.eval_c),
+        ("eval_s1", &proof.eval_s1),
+        ("eval_s2", &proof.eval_s2),
+        ("eval_zw", &proof.eval_zw),
+    ] {
+        let bytes = scalar.to_be_bytes();
+        out.push_str(&format!("        {}: {},\n", name, format_fr(&bytes)));
+    }
+    out.push_str("    }\n");
+    out.push_str("}\n");
+    Ok(out)
+}
+
+/// Parse snarkjs public inputs JSON and generate Rust source code.
+pub fn parse_public_inputs_json_to_rust_string(json_content: &str) -> Result<String, VkParseError> {
+    let inputs = parse_public_inputs_json(json_content)?;
+    let mut out = String::new();
+    out.push_str("pub fn test_public_inputs_fr() -> [plonk_solana::Fr; ");
+    out.push_str(&inputs.len().to_string());
+    out.push_str("] {\n");
+    out.push_str("    use plonk_solana::Fr;\n");
+    out.push_str("    [\n");
+    for input in &inputs {
+        let bytes = input.to_be_bytes();
+        out.push_str(&format!("        {},\n", format_fr(&bytes)));
+    }
+    out.push_str("    ]\n");
+    out.push_str("}\n\n");
+    out.push_str("pub fn test_public_inputs_bytes() -> [[u8; 32]; ");
+    out.push_str(&inputs.len().to_string());
+    out.push_str("] {\n");
+    out.push_str("    [\n");
+    for input in &inputs {
+        let bytes = input.to_be_bytes();
+        out.push_str(&format!("        [{}],\n", format_bytes(&bytes)));
+    }
+    out.push_str("    ]\n");
+    out.push_str("}\n");
+    Ok(out)
+}
+
+/// Generate a proof Rust file from a JSON file.
+pub fn generate_proof_file(
+    json_path: impl AsRef<Path>,
+    output_dir: impl AsRef<Path>,
+    output_filename: &str,
+) -> Result<(), VkParseError> {
+    let json_content = fs::read_to_string(json_path.as_ref())?;
+    let rust_code = parse_proof_json_to_rust_string(&json_content)?;
+    fs::create_dir_all(output_dir.as_ref())?;
+    let output_path = output_dir.as_ref().join(output_filename);
+    fs::write(output_path, rust_code)?;
+    Ok(())
+}
+
+/// Generate a public inputs Rust file from a JSON file.
+pub fn generate_public_inputs_file(
+    json_path: impl AsRef<Path>,
+    output_dir: impl AsRef<Path>,
+    output_filename: &str,
+) -> Result<(), VkParseError> {
+    let json_content = fs::read_to_string(json_path.as_ref())?;
+    let rust_code = parse_public_inputs_json_to_rust_string(&json_content)?;
+    fs::create_dir_all(output_dir.as_ref())?;
+    let output_path = output_dir.as_ref().join(output_filename);
+    fs::write(output_path, rust_code)?;
+    Ok(())
 }
 
 /// Generate a verification key Rust file from a JSON file.

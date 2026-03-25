@@ -150,18 +150,18 @@ impl TryFrom<&Proof> for CompressedProof {
     }
 }
 
-struct Challenges {
-    beta: Fr,
-    gamma: Fr,
-    alpha: Fr,
-    xi: Fr,
-    xin: Fr,
-    zh: Fr,
-    v: [Fr; 6],
-    u: Fr,
+pub struct Challenges {
+    pub beta: Fr,
+    pub gamma: Fr,
+    pub alpha: Fr,
+    pub xi: Fr,
+    pub xin: Fr,
+    pub zh: Fr,
+    pub v: [Fr; 6],
+    pub u: Fr,
 }
 
-fn g1_add(a: &G1, b: &G1) -> Result<G1, PlonkError> {
+pub fn g1_add(a: &G1, b: &G1) -> Result<G1, PlonkError> {
     let mut input = [0u8; 128];
     input[..64].copy_from_slice(&a.0);
     input[64..].copy_from_slice(&b.0);
@@ -169,12 +169,12 @@ fn g1_add(a: &G1, b: &G1) -> Result<G1, PlonkError> {
     Ok(G1(result))
 }
 
-fn g1_sub(a: &G1, b: &G1) -> Result<G1, PlonkError> {
+pub fn g1_sub(a: &G1, b: &G1) -> Result<G1, PlonkError> {
     let neg_b = g1_neg(b);
     g1_add(a, &neg_b)
 }
 
-fn g1_neg(p: &G1) -> G1 {
+pub fn g1_neg(p: &G1) -> G1 {
     if *p == G1::ZERO {
         return G1::ZERO;
     }
@@ -187,7 +187,7 @@ fn g1_neg(p: &G1) -> G1 {
     G1(result)
 }
 
-fn g1_mul(point: &G1, scalar: &Fr) -> Result<G1, PlonkError> {
+pub fn g1_mul(point: &G1, scalar: &Fr) -> Result<G1, PlonkError> {
     let mut input = [0u8; 96];
     input[..64].copy_from_slice(&point.0);
     input[64..].copy_from_slice(&scalar.to_be_bytes());
@@ -242,7 +242,7 @@ pub fn verify_unchecked<const N: usize>(
     }
 }
 
-fn calculate_challenges<const N: usize>(
+pub fn calculate_challenges<const N: usize>(
     vk: &VerificationKey,
     proof: &Proof,
     public_inputs: &[Fr; N],
@@ -321,7 +321,7 @@ fn calculate_challenges<const N: usize>(
     })
 }
 
-fn calculate_l1_and_pi<const N: usize>(
+pub fn calculate_l1_and_pi<const N: usize>(
     vk: &VerificationKey,
     ch: &Challenges,
     public_inputs: &[Fr; N],
@@ -333,6 +333,7 @@ fn calculate_l1_and_pi<const N: usize>(
     let mut pi = Fr::zero();
 
     let count = core::cmp::max(1, vk.n_public as usize);
+    #[allow(clippy::needless_range_loop)]
     for i in 0..count {
         let num = w * ch.zh;
         let den = n * (ch.xi - w);
@@ -350,7 +351,7 @@ fn calculate_l1_and_pi<const N: usize>(
     Ok((l1, pi))
 }
 
-fn calculate_r0(proof: &Proof, ch: &Challenges, pi: &Fr, l1: &Fr) -> Fr {
+pub fn calculate_r0(proof: &Proof, ch: &Challenges, pi: &Fr, l1: &Fr) -> Fr {
     let e1 = *pi;
     let e2 = *l1 * ch.alpha.square();
 
@@ -362,7 +363,7 @@ fn calculate_r0(proof: &Proof, ch: &Challenges, pi: &Fr, l1: &Fr) -> Fr {
     e1 - e2 - e3
 }
 
-fn calculate_d(
+pub fn calculate_d(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,
@@ -406,7 +407,7 @@ fn calculate_d(
     g1_sub(&r, &d4)
 }
 
-fn calculate_f(
+pub fn calculate_f(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,
@@ -425,7 +426,7 @@ fn calculate_f(
     g1_add(&r, &t5)
 }
 
-fn calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<G1, PlonkError> {
+pub fn calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<G1, PlonkError> {
     let scalar = -*r0
         + ch.v[1] * proof.eval_a
         + ch.v[2] * proof.eval_b
@@ -437,7 +438,7 @@ fn calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<G1, PlonkError
     g1_mul(&G1::GENERATOR, &scalar)
 }
 
-fn is_valid_pairing(
+pub fn is_valid_pairing(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,

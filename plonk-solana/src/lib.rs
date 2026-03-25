@@ -54,12 +54,36 @@
 
 extern crate alloc;
 
+#[cfg(feature = "bench")]
+pub mod errors;
+#[cfg(not(feature = "bench"))]
 pub(crate) mod errors;
+
+#[cfg(feature = "bench")]
+pub mod fr;
+#[cfg(not(feature = "bench"))]
 pub(crate) mod fr;
+
+#[cfg(feature = "bench")]
+pub mod g1;
+#[cfg(not(feature = "bench"))]
 pub(crate) mod g1;
+
+#[cfg(feature = "bench")]
+pub mod g2;
+#[cfg(not(feature = "bench"))]
 pub(crate) mod g2;
+
+#[cfg(feature = "bench")]
+pub mod plonk;
+#[cfg(not(feature = "bench"))]
 pub(crate) mod plonk;
+
 pub mod syscalls;
+
+#[cfg(feature = "bench")]
+pub mod transcript;
+#[cfg(not(feature = "bench"))]
 pub(crate) mod transcript;
 
 #[cfg(any(feature = "vk", test))]
