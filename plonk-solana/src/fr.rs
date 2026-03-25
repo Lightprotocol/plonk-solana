@@ -1,8 +1,16 @@
 /// Thin wrapper around ark_bn254::Fr for convenient byte conversion.
 /// All serialization uses 32-byte big-endian format (matching snarkjs/EIP-197).
 use ark_bn254::Fr as ArkFr;
-use ark_ff::{Field, One, Zero};
+use ark_ff::{Field, One, PrimeField, Zero};
 use num_bigint::BigUint;
+
+/// Returns true if the big-endian byte representation is less than the BN254
+/// scalar field (Fr) modulus. Use this to reject non-canonical public inputs
+/// before converting to Fr.
+pub fn is_less_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
+    let n = BigUint::from_bytes_be(bytes);
+    n < <ArkFr as PrimeField>::MODULUS.into()
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Fr(pub ArkFr);

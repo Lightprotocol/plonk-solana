@@ -23,17 +23,20 @@ test-arkworks:
 check:
     cargo check --workspace
 
-# Format all Rust code
+# Format all Rust code and regenerate README
 format:
     cargo fmt --all
+    cargo rdme --force
 
-# Check formatting without modifying files
+# Check formatting and README without modifying files
 format-check:
     cargo fmt --all -- --check
+    cargo rdme --check --force
 
-# Lint all Rust code (all features enabled)
+# Lint all Rust code (all features enabled) and check README
 lint:
     cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo rdme --check --force
 
 # Format + lint (fix all issues)
 fix: format

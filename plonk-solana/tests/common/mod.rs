@@ -85,3 +85,9 @@ pub fn load_test_public_inputs() -> Vec<Fr> {
         .map(|s| Fr::from_be_bytes(&str_to_be32(s)))
         .collect()
 }
+
+pub fn load_test_public_inputs_bytes() -> Vec<[u8; 32]> {
+    let vals: Vec<String> =
+        serde_json::from_str(include_str!("../../../tests/fixtures/data/public.json")).unwrap();
+    vals.iter().map(|s| str_to_be32(s)).collect()
+}

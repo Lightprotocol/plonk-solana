@@ -1,5 +1,6 @@
 use plonk_solana::Fr;
 use plonk_solana::Proof;
+
 use solana_program::{
     account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey,
@@ -38,10 +39,11 @@ fn process_instruction(
 
     let mut offset = 1;
 
-    let mut public_inputs = Vec::with_capacity(n_public);
+    let mut public_inputs: Vec<[u8; 32]> = Vec::with_capacity(n_public);
     for _ in 0..n_public {
-        let bytes = &instruction_data[offset..offset + 32];
-        public_inputs.push(Fr::from_be_bytes(bytes));
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(&instruction_data[offset..offset + 32]);
+        public_inputs.push(bytes);
         offset += 32;
     }
 

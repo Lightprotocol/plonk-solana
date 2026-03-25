@@ -2,13 +2,13 @@
 
 mod common;
 
-use plonk_solana::{verify, Fr, PlonkError};
+use plonk_solana::{verify, PlonkError};
 
 #[test]
 fn test_verify_valid_proof() {
     let vk = common::load_test_vk();
     let proof = common::load_test_proof();
-    let public_inputs = common::load_test_public_inputs();
+    let public_inputs = common::load_test_public_inputs_bytes();
     verify(&vk, &proof, &public_inputs).unwrap();
 }
 
@@ -16,9 +16,13 @@ fn test_verify_valid_proof() {
 fn test_verify_fails_invalid_public_input() {
     let vk = common::load_test_vk();
     let proof = common::load_test_proof();
-    let bad_inputs = vec![Fr::from(34u64)];
+    let bad_input = {
+        let mut b = [0u8; 32];
+        b[31] = 34;
+        b
+    };
     assert_eq!(
-        verify(&vk, &proof, &bad_inputs),
+        verify(&vk, &proof, &[bad_input]),
         Err(PlonkError::ProofVerificationFailed),
         "Expected ProofVerificationFailed for wrong public input value"
     );
@@ -29,9 +33,8 @@ fn test_verify_fails_too_many_public_inputs() {
     let vk = common::load_test_vk();
     let proof = common::load_test_proof();
     // VK has n_public=1, pass 2 inputs
-    let too_many = vec![Fr::from(15u64), Fr::from(42u64)];
     assert_eq!(
-        verify(&vk, &proof, &too_many),
+        verify(&vk, &proof, &[[0u8; 32], [0u8; 32]]),
         Err(PlonkError::InvalidPublicInputsLength),
         "Expected InvalidPublicInputsLength for too many inputs"
     );
@@ -41,9 +44,8 @@ fn test_verify_fails_too_many_public_inputs() {
 fn test_verify_fails_empty_public_inputs() {
     let vk = common::load_test_vk();
     let proof = common::load_test_proof();
-    let empty: Vec<Fr> = vec![];
     assert_eq!(
-        verify(&vk, &proof, &empty),
+        verify(&vk, &proof, &[]),
         Err(PlonkError::InvalidPublicInputsLength),
         "Expected InvalidPublicInputsLength for empty inputs"
     );

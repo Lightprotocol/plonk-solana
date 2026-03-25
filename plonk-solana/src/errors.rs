@@ -20,6 +20,8 @@ pub enum PlonkError {
     LagrangeDivisionByZero,
     #[error("Keccak256 hash failed")]
     KeccakFailed,
+    #[error("Public input greater than field size")]
+    PublicInputGreaterThanFieldSize,
 }
 
 impl From<PlonkError> for u32 {
@@ -34,6 +36,7 @@ impl From<PlonkError> for u32 {
             PlonkError::InvalidPublicInputsLength => 6,
             PlonkError::LagrangeDivisionByZero => 7,
             PlonkError::KeccakFailed => 8,
+            PlonkError::PublicInputGreaterThanFieldSize => 9,
         }
     }
 }

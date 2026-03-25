@@ -4,7 +4,7 @@
 /// All G2 points are 128 bytes big-endian (x1 || x0 || y1 || y0).
 /// All scalars are 32 bytes big-endian.
 use ark_bn254::Fq;
-use ark_ff::PrimeField;
+use ark_ff::PrimeField as _;
 use crate::errors::PlonkError;
 use crate::fr::Fr;
 use crate::g1::{CompressedG1, G1};
@@ -187,8 +187,34 @@ fn g1_mul(point: &G1, scalar: &Fr) -> Result<G1, PlonkError> {
     Ok(G1(bytes))
 }
 
-/// Verify a PLONK proof against a verification key and public inputs.
-pub fn verify(vk: &VerificationKey, proof: &Proof, public_inputs: &[Fr]) -> Result<(), PlonkError> {
+/// Verify a PLONK proof, checking that public inputs are less than the field size.
+///
+/// Public inputs are raw 32-byte big-endian values. Each is validated against
+/// the BN254 scalar field modulus before conversion to Fr.
+pub fn verify(
+    vk: &VerificationKey,
+    proof: &Proof,
+    public_inputs: &[[u8; 32]],
+) -> Result<(), PlonkError> {
+    if public_inputs.len() != vk.n_public as usize {
+        return Err(PlonkError::InvalidPublicInputsLength);
+    }
+    for input in public_inputs {
+        if !crate::fr::is_less_than_bn254_field_size_be(input) {
+            return Err(PlonkError::PublicInputGreaterThanFieldSize);
+        }
+    }
+    let fr_inputs: Vec<Fr> = public_inputs.iter().map(|b| Fr::from_be_bytes(b)).collect();
+    verify_unchecked(vk, proof, &fr_inputs)
+}
+
+/// Verify a PLONK proof without checking that public inputs are less than the
+/// field size. Use this when inputs are already known to be canonical Fr values.
+pub fn verify_unchecked(
+    vk: &VerificationKey,
+    proof: &Proof,
+    public_inputs: &[Fr],
+) -> Result<(), PlonkError> {
     if public_inputs.len() != vk.n_public as usize {
         return Err(PlonkError::InvalidPublicInputsLength);
     }
@@ -448,18 +474,27 @@ mod tests {
         vk_parser::parse_proof_json(include_str!("../../tests/fixtures/data/proof.json")).unwrap()
     }
 
-    fn test_public_inputs() -> Vec<Fr> {
+    fn test_public_inputs_fr() -> Vec<Fr> {
         vk_parser::parse_public_inputs_json(include_str!("../../tests/fixtures/data/public.json")).unwrap()
+    }
+
+    fn test_public_inputs_bytes() -> Vec<[u8; 32]> {
+        test_public_inputs_fr().iter().map(|f| f.to_be_bytes()).collect()
     }
 
     #[test]
     fn test_plonk_verify_valid_proof() {
-        verify(&test_vk(), &test_proof(), &test_public_inputs()).unwrap();
+        verify(&test_vk(), &test_proof(), &test_public_inputs_bytes()).unwrap();
+    }
+
+    #[test]
+    fn test_plonk_verify_unchecked_valid_proof() {
+        verify_unchecked(&test_vk(), &test_proof(), &test_public_inputs_fr()).unwrap();
     }
 
     #[test]
     fn test_plonk_verify_invalid_public_input() {
-        let result = verify(&test_vk(), &test_proof(), &[Fr::from(34u64)]);
+        let result = verify(&test_vk(), &test_proof(), &[Fr::from(34u64).to_be_bytes()]);
         assert_eq!(
             result,
             Err(PlonkError::ProofVerificationFailed),
@@ -469,7 +504,7 @@ mod tests {
 
     #[test]
     fn test_plonk_verify_wrong_input_count() {
-        let result = verify(&test_vk(), &test_proof(), &[]);
+        let result = verify(&test_vk(), &test_proof(), &[] as &[[u8; 32]]);
         assert_eq!(
             result,
             Err(PlonkError::InvalidPublicInputsLength),
@@ -478,11 +513,38 @@ mod tests {
     }
 
     #[test]
+    fn test_plonk_verify_public_input_greater_than_field_size() {
+        use ark_ff::PrimeField;
+        let modulus: num_bigint::BigUint = <ark_bn254::Fr as PrimeField>::MODULUS.into();
+        let modulus_bytes = modulus.to_bytes_be();
+        let mut input = [0u8; 32];
+        let start = 32 - modulus_bytes.len();
+        input[start..].copy_from_slice(&modulus_bytes);
+
+        let result = verify(&test_vk(), &test_proof(), &[input]);
+        assert_eq!(
+            result,
+            Err(PlonkError::PublicInputGreaterThanFieldSize),
+            "public input >= field modulus should be rejected by verify"
+        );
+
+        // verify_unchecked does not check field size -- the non-canonical value
+        // silently reduces and causes a proof verification failure instead.
+        let fr_input = Fr::from_be_bytes(&input);
+        let result = verify_unchecked(&test_vk(), &test_proof(), &[fr_input]);
+        assert_eq!(
+            result,
+            Err(PlonkError::ProofVerificationFailed),
+            "verify_unchecked should not catch oversized inputs"
+        );
+    }
+
+    #[test]
     fn test_plonk_verify_compressed_proof() {
         let proof = test_proof();
         let compressed = proof.compress().unwrap();
         let decompressed = compressed.decompress().unwrap();
-        verify(&test_vk(), &decompressed, &test_public_inputs()).unwrap();
+        verify(&test_vk(), &decompressed, &test_public_inputs_bytes()).unwrap();
     }
 
     #[test]
