@@ -6,18 +6,15 @@
 /// - G1 points: 64 bytes (x || y), big-endian
 /// - Scalars: 32 bytes, big-endian
 /// - Challenge: keccak256(buffer) -> reduce mod scalar field order
+use alloc::vec::Vec;
+
 use crate::errors::PlonkError;
 use crate::fr::Fr;
 use crate::g1::G1;
 use light_hasher::{Hasher, Keccak};
 
-enum Entry {
-    Point([u8; 64]),
-    Scalar([u8; 32]),
-}
-
 pub struct Transcript {
-    data: Vec<Entry>,
+    data: Vec<u8>,
 }
 
 impl Transcript {
@@ -30,41 +27,18 @@ impl Transcript {
     }
 
     pub fn add_point(&mut self, p: &G1) {
-        self.data.push(Entry::Point(p.0));
+        self.data.extend_from_slice(&p.0);
     }
 
     pub fn add_scalar(&mut self, s: &Fr) {
-        self.data.push(Entry::Scalar(s.to_be_bytes()));
+        self.data.extend_from_slice(&s.to_be_bytes());
     }
 
     pub fn get_challenge(&self) -> Result<Fr, PlonkError> {
         if self.data.is_empty() {
             return Err(PlonkError::EmptyTranscript);
         }
-        let mut size = 0;
-        for entry in &self.data {
-            match entry {
-                Entry::Point(_) => size += 64,
-                Entry::Scalar(_) => size += 32,
-            }
-        }
-
-        let mut buffer = vec![0u8; size];
-        let mut offset = 0;
-        for entry in &self.data {
-            match entry {
-                Entry::Point(p) => {
-                    buffer[offset..offset + 64].copy_from_slice(p);
-                    offset += 64;
-                }
-                Entry::Scalar(s) => {
-                    buffer[offset..offset + 32].copy_from_slice(s);
-                    offset += 32;
-                }
-            }
-        }
-
-        let hash = Keccak::hash(&buffer).map_err(|_| PlonkError::KeccakFailed)?;
+        let hash = Keccak::hash(&self.data).map_err(|_| PlonkError::KeccakFailed)?;
         Ok(Fr::from_be_bytes_unchecked(&hash))
     }
 }

@@ -18,6 +18,11 @@
 //!     ).unwrap();
 //! }
 //! ```
+extern crate std;
+use std::format;
+use std::string::String;
+use std::vec::Vec;
+
 use num_bigint::BigUint;
 use serde::Deserialize;
 use std::fs;

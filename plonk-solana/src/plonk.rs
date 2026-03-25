@@ -1,18 +1,19 @@
-use crate::errors::PlonkError;
-use crate::fr::Fr;
-use crate::g1::{CompressedG1, G1};
-use crate::g2::G2;
-use crate::transcript::Transcript;
-/// PLONK verifier using solana-bn254 syscalls for curve operations.
+/// PLONK verifier for BN254 curve operations.
+///
+/// On Solana: uses pinocchio alt_bn128 syscalls.
+/// Off-chain: uses arkworks fallback.
 ///
 /// All G1 points are 64 bytes big-endian (x || y).
 /// All G2 points are 128 bytes big-endian (x1 || x0 || y1 || y0).
 /// All scalars are 32 bytes big-endian.
+use crate::errors::PlonkError;
+use crate::fr::{bigint_to_be_bytes, Fr};
+use crate::g1::{CompressedG1, G1};
+use crate::g2::G2;
+use crate::syscalls::{g1_addition_be, g1_multiplication_be, pairing_be};
+use crate::transcript::Transcript;
 use ark_bn254::Fq;
 use ark_ff::PrimeField as _;
-use solana_bn254::prelude::{
-    alt_bn128_g1_addition_be, alt_bn128_g1_multiplication_be, alt_bn128_pairing_be,
-};
 
 /// Verification key (G1 points + G2 generator + scalar parameters).
 #[derive(Debug, PartialEq)]
@@ -161,12 +162,11 @@ struct Challenges {
 }
 
 fn g1_add(a: &G1, b: &G1) -> Result<G1, PlonkError> {
-    let input = [a.0.as_slice(), b.0.as_slice()].concat();
-    let result = alt_bn128_g1_addition_be(&input).map_err(|_| PlonkError::G1AdditionFailed)?;
-    let bytes: [u8; 64] = result
-        .try_into()
-        .map_err(|_| PlonkError::G1AdditionFailed)?;
-    Ok(G1(bytes))
+    let mut input = [0u8; 128];
+    input[..64].copy_from_slice(&a.0);
+    input[64..].copy_from_slice(&b.0);
+    let result = g1_addition_be(&input)?;
+    Ok(G1(result))
 }
 
 fn g1_sub(a: &G1, b: &G1) -> Result<G1, PlonkError> {
@@ -180,22 +180,19 @@ fn g1_neg(p: &G1) -> G1 {
     }
     let mut result = [0u8; 64];
     result[..32].copy_from_slice(&p.0[..32]);
-    // Deserialize y as Fq (big-endian), negate, serialize back.
     let y = Fq::from_be_bytes_mod_order(&p.0[32..64]);
     let neg_y = -y;
-    let n: num_bigint::BigUint = neg_y.into();
-    let bytes = n.to_bytes_be();
-    let start = 32usize.saturating_sub(bytes.len());
-    result[32 + start..64].copy_from_slice(&bytes);
+    let neg_y_bytes = bigint_to_be_bytes(&neg_y.into_bigint());
+    result[32..64].copy_from_slice(&neg_y_bytes);
     G1(result)
 }
 
 fn g1_mul(point: &G1, scalar: &Fr) -> Result<G1, PlonkError> {
-    let s = scalar.to_be_bytes();
-    let input = [point.0.as_slice(), s.as_slice()].concat();
-    let result = alt_bn128_g1_multiplication_be(&input).map_err(|_| PlonkError::G1MulFailed)?;
-    let bytes: [u8; 64] = result.try_into().map_err(|_| PlonkError::G1MulFailed)?;
-    Ok(G1(bytes))
+    let mut input = [0u8; 96];
+    input[..64].copy_from_slice(&point.0);
+    input[64..].copy_from_slice(&scalar.to_be_bytes());
+    let result = g1_multiplication_be(&input)?;
+    Ok(G1(result))
 }
 
 /// Verify a PLONK proof, checking that public inputs are less than the field size.
@@ -222,20 +219,19 @@ pub fn verify<const N: usize>(
 
 /// Verify a PLONK proof without checking that public inputs are less than the
 /// field size. Use this when inputs are already known to be canonical Fr values.
-pub fn verify_unchecked(
+pub fn verify_unchecked<const N: usize>(
     vk: &VerificationKey,
     proof: &Proof,
-    public_inputs: &[Fr],
+    public_inputs: &[Fr; N],
 ) -> Result<(), PlonkError> {
-    if public_inputs.len() != vk.n_public as usize {
+    if N != vk.n_public as usize {
         return Err(PlonkError::InvalidPublicInputsLength);
     }
 
-    let challenges = calculate_challenges(vk, proof, public_inputs)?;
-    let lagrange = calculate_lagrange_evaluations(vk, &challenges)?;
-    let pi = calculate_pi(public_inputs, &lagrange);
-    let r0 = calculate_r0(proof, &challenges, &pi, &lagrange[1]);
-    let d = calculate_d(vk, proof, &challenges, &lagrange[1])?;
+    let challenges = calculate_challenges::<N>(vk, proof, public_inputs)?;
+    let (l1, pi) = calculate_l1_and_pi::<N>(vk, &challenges, public_inputs)?;
+    let r0 = calculate_r0(proof, &challenges, &pi, &l1);
+    let d = calculate_d(vk, proof, &challenges, &l1)?;
     let f = calculate_f(vk, proof, &challenges, &d)?;
     let e = calculate_e(proof, &challenges, &r0)?;
 
@@ -246,10 +242,10 @@ pub fn verify_unchecked(
     }
 }
 
-fn calculate_challenges(
+fn calculate_challenges<const N: usize>(
     vk: &VerificationKey,
     proof: &Proof,
-    public_inputs: &[Fr],
+    public_inputs: &[Fr; N],
 ) -> Result<Challenges, PlonkError> {
     let mut transcript = Transcript::new();
 
@@ -325,34 +321,33 @@ fn calculate_challenges(
     })
 }
 
-fn calculate_lagrange_evaluations(
+fn calculate_l1_and_pi<const N: usize>(
     vk: &VerificationKey,
     ch: &Challenges,
-) -> Result<Vec<Fr>, PlonkError> {
+    public_inputs: &[Fr; N],
+) -> Result<(Fr, Fr), PlonkError> {
     let domain_size = 1u64 << vk.power;
     let n = Fr::from(domain_size);
-
-    let mut l = vec![Fr::zero()];
     let mut w = Fr::one();
+    let mut l1 = Fr::zero();
+    let mut pi = Fr::zero();
 
-    let count = std::cmp::max(1, vk.n_public as usize);
-    for _ in 0..count {
+    let count = core::cmp::max(1, vk.n_public as usize);
+    for i in 0..count {
         let num = w * ch.zh;
         let den = n * (ch.xi - w);
         let inv = den.inverse().ok_or(PlonkError::LagrangeDivisionByZero)?;
-        l.push(num * inv);
+        let li = num * inv;
+        if i == 0 {
+            l1 = li;
+        }
+        if i < N {
+            pi = pi - public_inputs[i] * li;
+        }
         w = w * vk.w;
     }
 
-    Ok(l)
-}
-
-fn calculate_pi(public_inputs: &[Fr], lagrange: &[Fr]) -> Fr {
-    let mut pi = Fr::zero();
-    for (i, input) in public_inputs.iter().enumerate() {
-        pi = pi - *input * lagrange[i + 1];
-    }
-    pi
+    Ok((l1, pi))
 }
 
 fn calculate_r0(proof: &Proof, ch: &Challenges, pi: &Fr, l1: &Fr) -> Fr {
@@ -461,20 +456,23 @@ fn is_valid_pairing(
 
     let neg_a1 = g1_neg(&a1);
 
-    let pairing_input = [
-        neg_a1.0.as_slice(),
-        vk.x_2.0.as_slice(),
-        b1.0.as_slice(),
-        G2::GENERATOR.0.as_slice(),
-    ]
-    .concat();
+    // 2 pairing pairs: (neg_a1, x_2) and (b1, G2::GENERATOR)
+    // Each pair = 64 (G1) + 128 (G2) = 192 bytes, total = 384 bytes
+    let mut pairing_input = [0u8; 384];
+    pairing_input[..64].copy_from_slice(&neg_a1.0);
+    pairing_input[64..192].copy_from_slice(&vk.x_2.0);
+    pairing_input[192..256].copy_from_slice(&b1.0);
+    pairing_input[256..384].copy_from_slice(&G2::GENERATOR.0);
 
-    let result = alt_bn128_pairing_be(&pairing_input).map_err(|_| PlonkError::PairingFailed)?;
+    let result = pairing_be(&pairing_input)?;
     Ok(result[31] == 1)
 }
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use std::vec::Vec;
+
     use super::*;
     use crate::vk_parser;
 
@@ -505,7 +503,8 @@ mod tests {
 
     #[test]
     fn test_plonk_verify_unchecked_valid_proof() {
-        verify_unchecked(&test_vk(), &test_proof(), &test_public_inputs_fr()).unwrap();
+        let inputs = test_public_inputs_fr();
+        verify_unchecked(&test_vk(), &test_proof(), &[inputs[0]]).unwrap();
     }
 
     #[test]
@@ -530,12 +529,9 @@ mod tests {
 
     #[test]
     fn test_plonk_verify_public_input_greater_than_field_size() {
+        use crate::fr::bigint_to_be_bytes;
         use ark_ff::PrimeField;
-        let modulus: num_bigint::BigUint = <ark_bn254::Fr as PrimeField>::MODULUS.into();
-        let modulus_bytes = modulus.to_bytes_be();
-        let mut input = [0u8; 32];
-        let start = 32 - modulus_bytes.len();
-        input[start..].copy_from_slice(&modulus_bytes);
+        let input = bigint_to_be_bytes(&<ark_bn254::Fr as PrimeField>::MODULUS);
 
         let result = verify(&test_vk(), &test_proof(), &[input]);
         assert_eq!(

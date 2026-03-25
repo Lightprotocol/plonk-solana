@@ -68,7 +68,7 @@ impl<'de> serde::Deserialize<'de> for G2 {
         struct G2Visitor;
         impl<'de> serde::de::Visitor<'de> for G2Visitor {
             type Value = G2;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 f.write_str("128 bytes")
             }
             fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<G2, E> {

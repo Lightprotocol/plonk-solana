@@ -1,5 +1,5 @@
 use crate::errors::PlonkError;
-use solana_bn254::compression::prelude::{alt_bn128_g1_compress_be, alt_bn128_g1_decompress_be};
+use crate::syscalls::{g1_compress_be, g1_decompress_be};
 
 /// Uncompressed G1 point on BN254: 64 bytes big-endian (x || y).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,8 +63,7 @@ impl G1 {
     }
 
     pub fn compress(&self) -> Result<CompressedG1, PlonkError> {
-        let bytes =
-            alt_bn128_g1_compress_be(&self.0).map_err(|_| PlonkError::G1CompressionFailed)?;
+        let bytes = g1_compress_be(&self.0)?;
         Ok(CompressedG1(bytes))
     }
 }
@@ -79,8 +78,7 @@ impl CompressedG1 {
     }
 
     pub fn decompress(&self) -> Result<G1, PlonkError> {
-        let bytes =
-            alt_bn128_g1_decompress_be(&self.0).map_err(|_| PlonkError::G1DecompressionFailed)?;
+        let bytes = g1_decompress_be(&self.0)?;
         Ok(G1(bytes))
     }
 }
@@ -138,7 +136,7 @@ impl<'de> serde::Deserialize<'de> for G1 {
         struct G1Visitor;
         impl<'de> serde::de::Visitor<'de> for G1Visitor {
             type Value = G1;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 f.write_str("64 bytes")
             }
             fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<G1, E> {

@@ -1,15 +1,11 @@
 use plonk_solana::G1;
 use proptest::prelude::*;
-use solana_bn254::prelude::alt_bn128_g1_multiplication_be;
 
 fn g1_from_scalar(scalar_bytes: [u8; 32]) -> G1 {
     let mut input = [0u8; 96];
     input[..64].copy_from_slice(&G1::GENERATOR.0);
     input[64..].copy_from_slice(&scalar_bytes);
-    let bytes: [u8; 64] = alt_bn128_g1_multiplication_be(&input)
-        .unwrap()
-        .try_into()
-        .unwrap();
+    let bytes = plonk_solana::syscalls::g1_multiplication_be(&input).unwrap();
     G1(bytes)
 }
 

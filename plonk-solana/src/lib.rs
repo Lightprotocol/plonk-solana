@@ -50,11 +50,16 @@
 //! # Ok::<(), plonk_solana::PlonkError>(())
 //! ```
 
+#![no_std]
+
+extern crate alloc;
+
 pub(crate) mod errors;
 pub(crate) mod fr;
 pub(crate) mod g1;
 pub(crate) mod g2;
 pub(crate) mod plonk;
+pub mod syscalls;
 pub(crate) mod transcript;
 
 #[cfg(any(feature = "vk", test))]

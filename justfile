@@ -40,6 +40,7 @@ format-check:
 # Lint all Rust code (all features enabled) and check README
 lint:
     cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo check -p plonk-solana --no-default-features
     cargo rdme --check --force
 
 # Format + lint (fix all issues)
