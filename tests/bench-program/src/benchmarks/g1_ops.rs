@@ -10,11 +10,6 @@ pub fn bench_g1_add(a: &G1, b: &G1) -> Result<G1, PlonkError> {
 }
 
 #[profile]
-pub fn bench_g1_sub(a: &G1, b: &G1) -> Result<G1, PlonkError> {
-    plonk::g1_sub(a, b)
-}
-
-#[profile]
 pub fn bench_g1_neg(p: &G1) -> G1 {
     plonk::g1_neg(p)
 }

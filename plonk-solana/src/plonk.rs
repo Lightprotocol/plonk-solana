@@ -171,11 +171,6 @@ pub fn g1_add(a: &G1, b: &G1) -> Result<G1, PlonkError> {
     Ok(G1(result))
 }
 
-pub fn g1_sub(a: &G1, b: &G1) -> Result<G1, PlonkError> {
-    let neg_b = g1_neg(b);
-    g1_add(a, &neg_b)
-}
-
 pub fn g1_neg(p: &G1) -> G1 {
     if *p == G1::ZERO {
         return G1::ZERO;
@@ -232,6 +227,26 @@ pub fn g1_mul(point: &G1, scalar: &Fr) -> Result<G1, PlonkError> {
     Ok(G1(result))
 }
 
+pub fn g1_mul_bytes(point: &G1, scalar_bytes: &[u8; 32]) -> Result<G1, PlonkError> {
+    let mut input = [0u8; 96];
+    input[..64].copy_from_slice(&point.0);
+    input[64..].copy_from_slice(scalar_bytes);
+    let result = g1_multiplication_be(&input)?;
+    Ok(G1(result))
+}
+
+#[inline(never)]
+pub fn compute_eval_bytes(proof: &Proof) -> [[u8; 32]; 6] {
+    [
+        proof.eval_a.to_be_bytes(),
+        proof.eval_b.to_be_bytes(),
+        proof.eval_c.to_be_bytes(),
+        proof.eval_s1.to_be_bytes(),
+        proof.eval_s2.to_be_bytes(),
+        proof.eval_zw.to_be_bytes(),
+    ]
+}
+
 /// Verify a PLONK proof, checking that public inputs are less than the field size.
 ///
 /// Public inputs are raw 32-byte big-endian values. Each is validated against
@@ -265,13 +280,13 @@ pub fn verify_unchecked<const N: usize>(
         return Err(PlonkError::InvalidPublicInputsLength);
     }
 
-    let challenges = calculate_challenges::<N>(vk, proof, public_inputs)?;
+    let eval_bytes = compute_eval_bytes(proof);
+    let challenges = calculate_challenges::<N>(vk, proof, public_inputs, &eval_bytes)?;
     let (l1, pi) = calculate_l1_and_pi::<N>(vk, &challenges, public_inputs)?;
-    let (r0, d) = calculate_r0_and_d(vk, proof, &challenges, &l1, &pi)?;
+    let (r0, d) = calculate_r0_and_d(vk, proof, &challenges, &l1, &pi, &eval_bytes)?;
     let f = calculate_f(vk, proof, &challenges, &d)?;
-    let e = calculate_e(proof, &challenges, &r0)?;
 
-    if is_valid_pairing(vk, proof, &challenges, &e, &f)? {
+    if is_valid_pairing(vk, proof, &challenges, &r0, &f)? {
         Ok(())
     } else {
         Err(PlonkError::ProofVerificationFailed)
@@ -282,11 +297,12 @@ pub fn calculate_challenges<const N: usize>(
     vk: &VerificationKey,
     proof: &Proof,
     public_inputs: &[Fr; N],
+    eval_bytes: &[[u8; 32]; 6],
 ) -> Result<Challenges, PlonkError> {
     let (beta, gamma, alpha, xi) = challenge_rounds_1_to_4::<N>(vk, proof, public_inputs)?;
 
     // V1: hash(xi || eval_a || eval_b || eval_c || eval_s1 || eval_s2 || eval_zw)
-    let v1 = challenge_v1(&xi, proof)?;
+    let v1 = challenge_v1(&xi, eval_bytes)?;
 
     let v2 = v1.square();
     let v3 = v2 * v1;
@@ -361,22 +377,16 @@ fn challenge_rounds_1_to_4<const N: usize>(
 }
 
 #[inline(never)]
-fn challenge_v1(xi: &Fr, proof: &Proof) -> Result<Fr, PlonkError> {
+fn challenge_v1(xi: &Fr, eval_bytes: &[[u8; 32]; 6]) -> Result<Fr, PlonkError> {
     let xi_bytes = xi.to_be_bytes();
-    let eval_a_bytes = proof.eval_a.to_be_bytes();
-    let eval_b_bytes = proof.eval_b.to_be_bytes();
-    let eval_c_bytes = proof.eval_c.to_be_bytes();
-    let eval_s1_bytes = proof.eval_s1.to_be_bytes();
-    let eval_s2_bytes = proof.eval_s2.to_be_bytes();
-    let eval_zw_bytes = proof.eval_zw.to_be_bytes();
     hash_challenge(&[
         &xi_bytes,
-        &eval_a_bytes,
-        &eval_b_bytes,
-        &eval_c_bytes,
-        &eval_s1_bytes,
-        &eval_s2_bytes,
-        &eval_zw_bytes,
+        &eval_bytes[0],
+        &eval_bytes[1],
+        &eval_bytes[2],
+        &eval_bytes[3],
+        &eval_bytes[4],
+        &eval_bytes[5],
     ])
 }
 
@@ -416,6 +426,7 @@ pub fn calculate_r0_and_d(
     ch: &Challenges,
     l1: &Fr,
     pi: &Fr,
+    eval_bytes: &[[u8; 32]; 6],
 ) -> Result<(Fr, G1), PlonkError> {
     // Shared sub-expressions
     let alpha_sq = ch.alpha.square();
@@ -432,9 +443,9 @@ pub fn calculate_r0_and_d(
     let ab = proof.eval_a * proof.eval_b;
     let d1 = {
         let t0 = g1_mul(&vk.qm, &ab)?;
-        let t1 = g1_mul(&vk.ql, &proof.eval_a)?;
-        let t2 = g1_mul(&vk.qr, &proof.eval_b)?;
-        let t3 = g1_mul(&vk.qo, &proof.eval_c)?;
+        let t1 = g1_mul_bytes(&vk.ql, &eval_bytes[0])?;
+        let t2 = g1_mul_bytes(&vk.qr, &eval_bytes[1])?;
+        let t3 = g1_mul_bytes(&vk.qo, &eval_bytes[2])?;
         let r = g1_add(&t0, &t1)?;
         let r = g1_add(&r, &t2)?;
         let r = g1_add(&r, &t3)?;
@@ -485,23 +496,11 @@ pub fn calculate_f(
     g1_add(&r, &t5)
 }
 
-pub fn calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<G1, PlonkError> {
-    let scalar = -*r0
-        + ch.v1 * proof.eval_a
-        + ch.v2 * proof.eval_b
-        + ch.v3 * proof.eval_c
-        + ch.v4 * proof.eval_s1
-        + ch.v5 * proof.eval_s2
-        + ch.u * proof.eval_zw;
-
-    g1_mul(&G1::GENERATOR, &scalar)
-}
-
 pub fn is_valid_pairing(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,
-    e: &G1,
+    r0: &Fr,
     f: &G1,
 ) -> Result<bool, PlonkError> {
     let u_wxiw = g1_mul(&proof.wxiw, &ch.u)?;
@@ -513,7 +512,17 @@ pub fn is_valid_pairing(
     let sum = g1_add(&proof.wxi, &uw_wxiw)?;
     let xi_sum = g1_mul(&sum, &ch.xi)?;
     let b1 = g1_add(&xi_sum, f)?;
-    let b1 = g1_sub(&b1, e)?;
+
+    // Inline calculate_e with negated scalar to avoid g1_sub
+    let neg_e_scalar = *r0
+        - ch.v1 * proof.eval_a
+        - ch.v2 * proof.eval_b
+        - ch.v3 * proof.eval_c
+        - ch.v4 * proof.eval_s1
+        - ch.v5 * proof.eval_s2
+        - ch.u * proof.eval_zw;
+    let neg_e = g1_mul(&G1::GENERATOR, &neg_e_scalar)?;
+    let b1 = g1_add(&b1, &neg_e)?;
 
     let neg_a1 = g1_neg(&a1);
 

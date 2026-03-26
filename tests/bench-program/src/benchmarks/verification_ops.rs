@@ -19,8 +19,9 @@ pub fn bench_calculate_r0_and_d(
     ch: &Challenges,
     l1: &Fr,
     pi: &Fr,
+    eval_bytes: &[[u8; 32]; 6],
 ) -> Result<(Fr, G1), PlonkError> {
-    plonk::calculate_r0_and_d(vk, proof, ch, l1, pi)
+    plonk::calculate_r0_and_d(vk, proof, ch, l1, pi, eval_bytes)
 }
 
 #[profile]
@@ -34,17 +35,12 @@ pub fn bench_calculate_f(
 }
 
 #[profile]
-pub fn bench_calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<G1, PlonkError> {
-    plonk::calculate_e(proof, ch, r0)
-}
-
-#[profile]
 pub fn bench_is_valid_pairing(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,
-    e: &G1,
+    r0: &Fr,
     f: &G1,
 ) -> Result<bool, PlonkError> {
-    plonk::is_valid_pairing(vk, proof, ch, e, f)
+    plonk::is_valid_pairing(vk, proof, ch, r0, f)
 }

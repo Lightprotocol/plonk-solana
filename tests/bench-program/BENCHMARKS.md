@@ -33,12 +33,12 @@ Compute unit benchmarks for PLONK verification operations on Solana.
 
 | Function | CU |
 |----------|-----|
-| [bench_fr_from_be_bytes](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L5) | 2456 |
+| [bench_fr_from_be_bytes](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L5) | 2455 |
 | [bench_fr_to_be_bytes](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L10) | 1202 |
 | [bench_fr_square](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L15) | 1978 |
 | [bench_fr_inverse](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L20) | 56150 |
 | [bench_fr_add](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L25) | 80 |
-| [bench_fr_sub](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L30) | 53 |
+| [bench_fr_sub](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L30) | 54 |
 | [bench_fr_mul](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L35) | 2397 |
 | [bench_is_less_than_field_size](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/fr_ops.rs#L40) | 10 |
 
@@ -47,18 +47,17 @@ Compute unit benchmarks for PLONK verification operations on Solana.
 | Function | CU |
 |----------|-----|
 | [bench_g1_add](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L8) | 420 |
-| [bench_g1_sub](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L13) | 489 |
-| [bench_g1_neg](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L18) | 88 |
-| [bench_g1_mul](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L23) | 5101 |
-| [bench_g1_compress](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L28) | 158 |
-| [bench_g1_decompress](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L33) | 543 |
+| [bench_g1_neg](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L13) | 88 |
+| [bench_g1_mul](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L18) | 5101 |
+| [bench_g1_compress](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L23) | 158 |
+| [bench_g1_decompress](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/g1_ops.rs#L28) | 543 |
 
 ### 2.3 Top Level
 
 | Function | CU |
 |----------|-----|
-| [bench_verify](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L6) | 371478 |
-| [bench_verify_unchecked](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L15) | 369011 |
+| [bench_verify](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L6) | 324610 |
+| [bench_verify_unchecked](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L15) | 322144 |
 | [bench_proof_compress](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L24) | 1504 |
 | [bench_proof_decompress](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L29) | 5056 |
 
@@ -66,16 +65,15 @@ Compute unit benchmarks for PLONK verification operations on Solana.
 
 | Function | CU |
 |----------|-----|
-| [bench_transcript_get_challenge](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/transcript_ops.rs#L6) | 3835 |
-| [bench_calculate_challenges](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/transcript_ops.rs#L13) | 89113 |
+| [bench_transcript_get_challenge](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/transcript_ops.rs#L6) | 3834 |
+| [bench_calculate_challenges](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/transcript_ops.rs#L13) | 38649 |
 
 ### 2.5 Verification Ops
 
 | Function | CU |
 |----------|-----|
 | [bench_calculate_l1_and_pi](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L7) | 65354 |
-| [bench_calculate_r0_and_d](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L16) | 98325 |
-| [bench_calculate_f](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L27) | 27631 |
-| [bench_calculate_e](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L37) | 19900 |
-| [bench_is_valid_pairing](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L42) | 68490 |
+| [bench_calculate_r0_and_d](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L16) | 94773 |
+| [bench_calculate_f](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L28) | 27631 |
+| [bench_is_valid_pairing](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L38) | 88415 |
 

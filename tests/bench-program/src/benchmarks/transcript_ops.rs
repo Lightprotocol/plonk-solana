@@ -14,6 +14,7 @@ pub fn bench_calculate_challenges(
     vk: &VerificationKey,
     proof: &Proof,
     public_inputs: &[Fr; 1],
+    eval_bytes: &[[u8; 32]; 6],
 ) -> Result<Challenges, PlonkError> {
-    plonk_solana::plonk::calculate_challenges(vk, proof, public_inputs)
+    plonk_solana::plonk::calculate_challenges(vk, proof, public_inputs, eval_bytes)
 }

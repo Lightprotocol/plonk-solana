@@ -35,7 +35,6 @@ fn bench_plonk_operations() {
         PlonkBenchInstruction::Baseline,
         // G1 operations
         PlonkBenchInstruction::G1Add,
-        PlonkBenchInstruction::G1Sub,
         PlonkBenchInstruction::G1Neg,
         PlonkBenchInstruction::G1Mul,
         PlonkBenchInstruction::G1Compress,
@@ -56,7 +55,6 @@ fn bench_plonk_operations() {
         PlonkBenchInstruction::CalculateL1AndPi,
         PlonkBenchInstruction::CalculateR0AndD,
         PlonkBenchInstruction::CalculateF,
-        PlonkBenchInstruction::CalculateE,
         PlonkBenchInstruction::IsValidPairing,
         // Top-level
         PlonkBenchInstruction::Verify,

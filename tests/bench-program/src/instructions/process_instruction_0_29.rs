@@ -14,10 +14,6 @@ pub fn process_instruction_0_29(instruction: PlonkBenchInstruction) -> ProgramRe
             let proof = test_proof();
             let _ = g1_ops::bench_g1_add(&proof.a, &proof.b).unwrap();
         }
-        PlonkBenchInstruction::G1Sub => {
-            let proof = test_proof();
-            let _ = g1_ops::bench_g1_sub(&proof.a, &proof.b).unwrap();
-        }
         PlonkBenchInstruction::G1Neg => {
             let proof = test_proof();
             let _ = g1_ops::bench_g1_neg(&proof.a);
@@ -74,7 +70,9 @@ pub fn process_instruction_0_29(instruction: PlonkBenchInstruction) -> ProgramRe
             let vk = verifying_key();
             let proof = test_proof();
             let inputs = test_public_inputs_fr();
-            let _ = transcript_ops::bench_calculate_challenges(&vk, &proof, &inputs).unwrap();
+            let eval_bytes = plonk_solana::plonk::compute_eval_bytes(&proof);
+            let _ = transcript_ops::bench_calculate_challenges(&vk, &proof, &inputs, &eval_bytes)
+                .unwrap();
         }
         _ => return Err(pinocchio::error::ProgramError::InvalidInstructionData),
     }

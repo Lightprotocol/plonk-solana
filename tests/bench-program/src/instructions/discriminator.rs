@@ -6,7 +6,6 @@ pub enum PlonkBenchInstruction {
     Baseline = 0,
     // G1 Operations (1-9)
     G1Add = 1,
-    G1Sub = 2,
     G1Neg = 3,
     G1Mul = 4,
     G1Compress = 5,
@@ -27,7 +26,6 @@ pub enum PlonkBenchInstruction {
     CalculateL1AndPi = 30,
     CalculateR0AndD = 31,
     CalculateF = 33,
-    CalculateE = 34,
     IsValidPairing = 35,
     // Top-level (50-59)
     Verify = 50,
@@ -53,7 +51,6 @@ impl TryFrom<&[u8]> for PlonkBenchInstruction {
         match discriminator {
             0 => Ok(PlonkBenchInstruction::Baseline),
             1 => Ok(PlonkBenchInstruction::G1Add),
-            2 => Ok(PlonkBenchInstruction::G1Sub),
             3 => Ok(PlonkBenchInstruction::G1Neg),
             4 => Ok(PlonkBenchInstruction::G1Mul),
             5 => Ok(PlonkBenchInstruction::G1Compress),
@@ -71,7 +68,6 @@ impl TryFrom<&[u8]> for PlonkBenchInstruction {
             30 => Ok(PlonkBenchInstruction::CalculateL1AndPi),
             31 => Ok(PlonkBenchInstruction::CalculateR0AndD),
             33 => Ok(PlonkBenchInstruction::CalculateF),
-            34 => Ok(PlonkBenchInstruction::CalculateE),
             35 => Ok(PlonkBenchInstruction::IsValidPairing),
             50 => Ok(PlonkBenchInstruction::Verify),
             51 => Ok(PlonkBenchInstruction::VerifyUnchecked),

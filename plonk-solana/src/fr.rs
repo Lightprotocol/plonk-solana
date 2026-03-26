@@ -1,6 +1,7 @@
 /// Thin wrapper around ark_bn254::Fr for convenient byte conversion.
 /// All serialization uses 32-byte big-endian format (matching snarkjs/EIP-197).
 use ark_bn254::Fr as ArkFr;
+use ark_ff::biginteger::BigInteger;
 use ark_ff::{BigInt, Field, One, PrimeField, Zero};
 
 /// Convert 32 big-endian bytes to ark BigInt<4> (little-endian u64 limbs).
@@ -65,15 +66,27 @@ impl Fr {
     /// Convert big-endian bytes to Fr with silent modular reduction.
     /// Non-canonical values (>= field modulus) are reduced without error.
     pub fn from_be_bytes_unchecked(bytes: &[u8]) -> Self {
-        // Fast path: 32-byte canonical input (common case for challenges)
         if bytes.len() == 32 {
             let bytes32: &[u8; 32] = bytes.try_into().unwrap();
-            let bigint = bigint_from_be_bytes(bytes32);
+            let mut bigint = bigint_from_be_bytes(bytes32);
+            // Fast path: canonical input (< MODULUS)
             if let Some(fr) = ArkFr::from_bigint(bigint) {
                 return Self(fr);
             }
+            // Fast reduction: subtract MODULUS until < MODULUS
+            // For 256-bit keccak outputs, at most ~5 subtractions needed
+            let modulus = <ArkFr as PrimeField>::MODULUS;
+            loop {
+                let mut tmp = bigint;
+                let borrow = tmp.sub_with_borrow(&modulus);
+                if borrow {
+                    break;
+                }
+                bigint = tmp;
+            }
+            return Self(ArkFr::from_bigint(bigint).unwrap());
         }
-        // Fallback for non-canonical values or non-32-byte inputs
+        // Non-32-byte fallback (unused in practice)
         let mut le = [0u8; 32];
         let len = bytes.len().min(32);
         let start = 32 - len;
