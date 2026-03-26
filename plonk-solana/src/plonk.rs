@@ -334,35 +334,40 @@ pub fn calculate_challenges<const N: usize>(
     })
 }
 
+/// Maximum public inputs in the beta transcript (stack-allocated slice array).
+const MAX_BETA_PI: usize = 32;
+
 #[inline(never)]
 fn challenge_rounds_1_to_4<const N: usize>(
     vk: &VerificationKey,
     proof: &Proof,
     public_inputs: &[Fr; N],
 ) -> Result<(Fr, Fr, Fr, Fr), PlonkError> {
+    assert!(N <= MAX_BETA_PI);
+
     let mut pi_bytes = [[0u8; 32]; N];
     for (i, pi) in public_inputs.iter().enumerate() {
         pi_bytes[i] = pi.to_be_bytes();
     }
 
-    let mut beta_slices: [&[u8]; 12] = [
-        &vk.qm.0,
-        &vk.ql.0,
-        &vk.qr.0,
-        &vk.qo.0,
-        &vk.qc.0,
-        &vk.s1.0,
-        &vk.s2.0,
-        &vk.s3.0,
-        &[],
-        &proof.a.0,
-        &proof.b.0,
-        &proof.c.0,
-    ];
-    if N == 1 {
-        beta_slices[8] = &pi_bytes[0];
+    // Beta: keccak256(Qm||Ql||Qr||Qo||Qc||S1||S2||S3||PI_0||..||PI_N||A||B||C)
+    // Fixed-capacity array avoids heap allocation; only [..11+N] is hashed.
+    let mut beta_slices = [&[] as &[u8]; 11 + MAX_BETA_PI];
+    beta_slices[0] = &vk.qm.0;
+    beta_slices[1] = &vk.ql.0;
+    beta_slices[2] = &vk.qr.0;
+    beta_slices[3] = &vk.qo.0;
+    beta_slices[4] = &vk.qc.0;
+    beta_slices[5] = &vk.s1.0;
+    beta_slices[6] = &vk.s2.0;
+    beta_slices[7] = &vk.s3.0;
+    for i in 0..N {
+        beta_slices[8 + i] = &pi_bytes[i];
     }
-    let beta = hash_challenge(&beta_slices)?;
+    beta_slices[8 + N] = &proof.a.0;
+    beta_slices[8 + N + 1] = &proof.b.0;
+    beta_slices[8 + N + 2] = &proof.c.0;
+    let beta = hash_challenge(&beta_slices[..11 + N])?;
 
     let beta_bytes = beta.to_be_bytes();
     let gamma = hash_challenge(&[&beta_bytes])?;

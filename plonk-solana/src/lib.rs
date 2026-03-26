@@ -90,7 +90,7 @@ pub(crate) mod transcript;
 pub mod vk_parser;
 
 pub use errors::PlonkError;
-pub use fr::{is_less_than_bn254_field_size_be, Fr};
+pub use fr::{bigint_from_be_bytes, bigint_to_be_bytes, is_less_than_bn254_field_size_be, Fr};
 pub use g1::{CompressedG1, G1};
 pub use g2::G2;
 pub use plonk::{verify, verify_unchecked, CompressedProof, Proof, VerificationKey};

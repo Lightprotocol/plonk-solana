@@ -199,3 +199,54 @@ impl<'de> serde::Deserialize<'de> for Fr {
         deserializer.deserialize_bytes(FrVisitor)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_be_bytes_unchecked_at_modulus() {
+        let modulus_bytes = bigint_to_be_bytes(&<ArkFr as PrimeField>::MODULUS);
+        assert_eq!(Fr::from_be_bytes_unchecked(&modulus_bytes), Fr::zero());
+    }
+
+    #[test]
+    fn from_be_bytes_unchecked_at_modulus_plus_one() {
+        let mut bytes = bigint_to_be_bytes(&<ArkFr as PrimeField>::MODULUS);
+        for i in (0..32).rev() {
+            let (val, overflow) = bytes[i].overflowing_add(1);
+            bytes[i] = val;
+            if !overflow {
+                break;
+            }
+        }
+        assert_eq!(Fr::from_be_bytes_unchecked(&bytes), Fr::one());
+    }
+
+    #[test]
+    fn from_be_bytes_unchecked_all_ones() {
+        let bytes = [0xFF; 32];
+        let fr = Fr::from_be_bytes_unchecked(&bytes);
+        let fr2 = Fr::from_be_bytes_unchecked(&fr.to_be_bytes());
+        assert_eq!(fr, fr2);
+    }
+
+    #[test]
+    fn from_be_bytes_rejects_modulus() {
+        let modulus_bytes = bigint_to_be_bytes(&<ArkFr as PrimeField>::MODULUS);
+        assert!(Fr::from_be_bytes(&modulus_bytes).is_none());
+    }
+
+    #[test]
+    fn from_be_bytes_accepts_modulus_minus_one() {
+        let mut bytes = bigint_to_be_bytes(&<ArkFr as PrimeField>::MODULUS);
+        for i in (0..32).rev() {
+            let (val, underflow) = bytes[i].overflowing_sub(1);
+            bytes[i] = val;
+            if !underflow {
+                break;
+            }
+        }
+        assert!(Fr::from_be_bytes(&bytes).is_some());
+    }
+}
