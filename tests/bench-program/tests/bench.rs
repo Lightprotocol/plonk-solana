@@ -54,8 +54,7 @@ fn bench_plonk_operations() {
         PlonkBenchInstruction::CalculateChallenges,
         // Verification steps
         PlonkBenchInstruction::CalculateL1AndPi,
-        PlonkBenchInstruction::CalculateR0,
-        PlonkBenchInstruction::CalculateD,
+        PlonkBenchInstruction::CalculateR0AndD,
         PlonkBenchInstruction::CalculateF,
         PlonkBenchInstruction::CalculateE,
         PlonkBenchInstruction::IsValidPairing,

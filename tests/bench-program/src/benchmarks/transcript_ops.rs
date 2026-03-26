@@ -5,11 +5,8 @@ use plonk_solana::{Fr, PlonkError};
 #[profile]
 pub fn bench_transcript_get_challenge() -> Result<Fr, PlonkError> {
     use plonk_solana::g1::G1;
-    use plonk_solana::transcript::Transcript;
-    let mut transcript = Transcript::new();
-    transcript.add_point(&G1::GENERATOR);
-    transcript.add_scalar(&Fr::one());
-    transcript.get_challenge()
+    let scalar_bytes = Fr::one().to_be_bytes();
+    plonk_solana::transcript::hash_challenge(&[&G1::GENERATOR.0, &scalar_bytes])
 }
 
 #[profile]

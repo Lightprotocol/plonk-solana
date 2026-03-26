@@ -7,13 +7,11 @@
 /// All G2 points are 128 bytes big-endian (x1 || x0 || y1 || y0).
 /// All scalars are 32 bytes big-endian.
 use crate::errors::PlonkError;
-use crate::fr::{bigint_to_be_bytes, Fr};
+use crate::fr::Fr;
 use crate::g1::{CompressedG1, G1};
 use crate::g2::G2;
 use crate::syscalls::{g1_addition_be, g1_multiplication_be, pairing_be};
-use crate::transcript::Transcript;
-use ark_bn254::Fq;
-use ark_ff::PrimeField as _;
+use crate::transcript::hash_challenge;
 
 /// Verification key (G1 points + G2 generator + scalar parameters).
 #[derive(Debug, PartialEq)]
@@ -157,7 +155,11 @@ pub struct Challenges {
     pub xi: Fr,
     pub xin: Fr,
     pub zh: Fr,
-    pub v: [Fr; 6],
+    pub v1: Fr,
+    pub v2: Fr,
+    pub v3: Fr,
+    pub v4: Fr,
+    pub v5: Fr,
     pub u: Fr,
 }
 
@@ -180,10 +182,45 @@ pub fn g1_neg(p: &G1) -> G1 {
     }
     let mut result = [0u8; 64];
     result[..32].copy_from_slice(&p.0[..32]);
-    let y = Fq::from_be_bytes_mod_order(&p.0[32..64]);
-    let neg_y = -y;
-    let neg_y_bytes = bigint_to_be_bytes(&neg_y.into_bigint());
-    result[32..64].copy_from_slice(&neg_y_bytes);
+    // BN254 Fq modulus (big-endian u64 limbs, most significant first)
+    const FQ: [u64; 4] = [
+        0x30644e72e131a029,
+        0xb85045b68181585d,
+        0x97816a916871ca8d,
+        0x3c208c16d87cfd47,
+    ];
+    let y = [
+        u64::from_be_bytes([
+            p.0[32], p.0[33], p.0[34], p.0[35], p.0[36], p.0[37], p.0[38], p.0[39],
+        ]),
+        u64::from_be_bytes([
+            p.0[40], p.0[41], p.0[42], p.0[43], p.0[44], p.0[45], p.0[46], p.0[47],
+        ]),
+        u64::from_be_bytes([
+            p.0[48], p.0[49], p.0[50], p.0[51], p.0[52], p.0[53], p.0[54], p.0[55],
+        ]),
+        u64::from_be_bytes([
+            p.0[56], p.0[57], p.0[58], p.0[59], p.0[60], p.0[61], p.0[62], p.0[63],
+        ]),
+    ];
+    // Compute p - y with borrow (big-endian: limb[0] is most significant)
+    let mut borrow: u64 = 0;
+    let mut neg_y = [0u64; 4];
+    let mut i = 3;
+    loop {
+        let (diff, b1) = FQ[i].overflowing_sub(y[i]);
+        let (diff, b2) = diff.overflowing_sub(borrow);
+        neg_y[i] = diff;
+        borrow = (b1 as u64) + (b2 as u64);
+        if i == 0 {
+            break;
+        }
+        i -= 1;
+    }
+    result[32..40].copy_from_slice(&neg_y[0].to_be_bytes());
+    result[40..48].copy_from_slice(&neg_y[1].to_be_bytes());
+    result[48..56].copy_from_slice(&neg_y[2].to_be_bytes());
+    result[56..64].copy_from_slice(&neg_y[3].to_be_bytes());
     G1(result)
 }
 
@@ -230,8 +267,7 @@ pub fn verify_unchecked<const N: usize>(
 
     let challenges = calculate_challenges::<N>(vk, proof, public_inputs)?;
     let (l1, pi) = calculate_l1_and_pi::<N>(vk, &challenges, public_inputs)?;
-    let r0 = calculate_r0(proof, &challenges, &pi, &l1);
-    let d = calculate_d(vk, proof, &challenges, &l1)?;
+    let (r0, d) = calculate_r0_and_d(vk, proof, &challenges, &l1, &pi)?;
     let f = calculate_f(vk, proof, &challenges, &d)?;
     let e = calculate_e(proof, &challenges, &r0)?;
 
@@ -247,61 +283,18 @@ pub fn calculate_challenges<const N: usize>(
     proof: &Proof,
     public_inputs: &[Fr; N],
 ) -> Result<Challenges, PlonkError> {
-    let mut transcript = Transcript::new();
+    let (beta, gamma, alpha, xi) = challenge_rounds_1_to_4::<N>(vk, proof, public_inputs)?;
 
-    transcript.add_point(&vk.qm);
-    transcript.add_point(&vk.ql);
-    transcript.add_point(&vk.qr);
-    transcript.add_point(&vk.qo);
-    transcript.add_point(&vk.qc);
-    transcript.add_point(&vk.s1);
-    transcript.add_point(&vk.s2);
-    transcript.add_point(&vk.s3);
-    for pi in public_inputs {
-        transcript.add_scalar(pi);
-    }
-    transcript.add_point(&proof.a);
-    transcript.add_point(&proof.b);
-    transcript.add_point(&proof.c);
-    let beta = transcript.get_challenge()?;
+    // V1: hash(xi || eval_a || eval_b || eval_c || eval_s1 || eval_s2 || eval_zw)
+    let v1 = challenge_v1(&xi, proof)?;
 
-    transcript.reset();
-    transcript.add_scalar(&beta);
-    let gamma = transcript.get_challenge()?;
+    let v2 = v1.square();
+    let v3 = v2 * v1;
+    let v4 = v2.square();
+    let v5 = v4 * v1;
 
-    transcript.reset();
-    transcript.add_scalar(&beta);
-    transcript.add_scalar(&gamma);
-    transcript.add_point(&proof.z);
-    let alpha = transcript.get_challenge()?;
-
-    transcript.reset();
-    transcript.add_scalar(&alpha);
-    transcript.add_point(&proof.t1);
-    transcript.add_point(&proof.t2);
-    transcript.add_point(&proof.t3);
-    let xi = transcript.get_challenge()?;
-
-    transcript.reset();
-    transcript.add_scalar(&xi);
-    transcript.add_scalar(&proof.eval_a);
-    transcript.add_scalar(&proof.eval_b);
-    transcript.add_scalar(&proof.eval_c);
-    transcript.add_scalar(&proof.eval_s1);
-    transcript.add_scalar(&proof.eval_s2);
-    transcript.add_scalar(&proof.eval_zw);
-    let v1 = transcript.get_challenge()?;
-
-    let mut v = [Fr::zero(); 6];
-    v[1] = v1;
-    for i in 2..6 {
-        v[i] = v[i - 1] * v1;
-    }
-
-    transcript.reset();
-    transcript.add_point(&proof.wxi);
-    transcript.add_point(&proof.wxiw);
-    let u = transcript.get_challenge()?;
+    // U: hash(wxi || wxiw)
+    let u = hash_challenge(&[&proof.wxi.0, &proof.wxiw.0])?;
 
     let mut xin = xi;
     for _ in 0..vk.power {
@@ -316,9 +309,75 @@ pub fn calculate_challenges<const N: usize>(
         xi,
         xin,
         zh,
-        v,
+        v1,
+        v2,
+        v3,
+        v4,
+        v5,
         u,
     })
+}
+
+#[inline(never)]
+fn challenge_rounds_1_to_4<const N: usize>(
+    vk: &VerificationKey,
+    proof: &Proof,
+    public_inputs: &[Fr; N],
+) -> Result<(Fr, Fr, Fr, Fr), PlonkError> {
+    let mut pi_bytes = [[0u8; 32]; N];
+    for (i, pi) in public_inputs.iter().enumerate() {
+        pi_bytes[i] = pi.to_be_bytes();
+    }
+
+    let mut beta_slices: [&[u8]; 12] = [
+        &vk.qm.0,
+        &vk.ql.0,
+        &vk.qr.0,
+        &vk.qo.0,
+        &vk.qc.0,
+        &vk.s1.0,
+        &vk.s2.0,
+        &vk.s3.0,
+        &[],
+        &proof.a.0,
+        &proof.b.0,
+        &proof.c.0,
+    ];
+    if N == 1 {
+        beta_slices[8] = &pi_bytes[0];
+    }
+    let beta = hash_challenge(&beta_slices)?;
+
+    let beta_bytes = beta.to_be_bytes();
+    let gamma = hash_challenge(&[&beta_bytes])?;
+
+    let gamma_bytes = gamma.to_be_bytes();
+    let alpha = hash_challenge(&[&beta_bytes, &gamma_bytes, &proof.z.0])?;
+
+    let alpha_bytes = alpha.to_be_bytes();
+    let xi = hash_challenge(&[&alpha_bytes, &proof.t1.0, &proof.t2.0, &proof.t3.0])?;
+
+    Ok((beta, gamma, alpha, xi))
+}
+
+#[inline(never)]
+fn challenge_v1(xi: &Fr, proof: &Proof) -> Result<Fr, PlonkError> {
+    let xi_bytes = xi.to_be_bytes();
+    let eval_a_bytes = proof.eval_a.to_be_bytes();
+    let eval_b_bytes = proof.eval_b.to_be_bytes();
+    let eval_c_bytes = proof.eval_c.to_be_bytes();
+    let eval_s1_bytes = proof.eval_s1.to_be_bytes();
+    let eval_s2_bytes = proof.eval_s2.to_be_bytes();
+    let eval_zw_bytes = proof.eval_zw.to_be_bytes();
+    hash_challenge(&[
+        &xi_bytes,
+        &eval_a_bytes,
+        &eval_b_bytes,
+        &eval_c_bytes,
+        &eval_s1_bytes,
+        &eval_s2_bytes,
+        &eval_zw_bytes,
+    ])
 }
 
 pub fn calculate_l1_and_pi<const N: usize>(
@@ -351,24 +410,25 @@ pub fn calculate_l1_and_pi<const N: usize>(
     Ok((l1, pi))
 }
 
-pub fn calculate_r0(proof: &Proof, ch: &Challenges, pi: &Fr, l1: &Fr) -> Fr {
-    let e1 = *pi;
-    let e2 = *l1 * ch.alpha.square();
-
-    let e3a = proof.eval_a + ch.beta * proof.eval_s1 + ch.gamma;
-    let e3b = proof.eval_b + ch.beta * proof.eval_s2 + ch.gamma;
-    let e3c = proof.eval_c + ch.gamma;
-    let e3 = e3a * e3b * e3c * proof.eval_zw * ch.alpha;
-
-    e1 - e2 - e3
-}
-
-pub fn calculate_d(
+pub fn calculate_r0_and_d(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,
     l1: &Fr,
-) -> Result<G1, PlonkError> {
+    pi: &Fr,
+) -> Result<(Fr, G1), PlonkError> {
+    // Shared sub-expressions
+    let alpha_sq = ch.alpha.square();
+    let l1_alpha_sq = *l1 * alpha_sq;
+    let beta_s1_gamma = proof.eval_a + ch.beta * proof.eval_s1 + ch.gamma;
+    let beta_s2_gamma = proof.eval_b + ch.beta * proof.eval_s2 + ch.gamma;
+
+    // r0 computation
+    let e3c = proof.eval_c + ch.gamma;
+    let e3 = beta_s1_gamma * beta_s2_gamma * e3c * proof.eval_zw * ch.alpha;
+    let r0 = *pi - l1_alpha_sq - e3;
+
+    // d computation (reuses shared values)
     let ab = proof.eval_a * proof.eval_b;
     let d1 = {
         let t0 = g1_mul(&vk.qm, &ab)?;
@@ -386,25 +446,24 @@ pub fn calculate_d(
     let d2a2 = proof.eval_b + betaxi * vk.k1 + ch.gamma;
     let d2a3 = proof.eval_c + betaxi * vk.k2 + ch.gamma;
     let d2a = d2a1 * d2a2 * d2a3 * ch.alpha;
-    let d2b = *l1 * ch.alpha.square();
-    let d2_scalar = d2a + d2b + ch.u;
+    let d2_scalar = d2a + l1_alpha_sq + ch.u;
     let d2 = g1_mul(&proof.z, &d2_scalar)?;
 
-    let d3a = proof.eval_a + ch.beta * proof.eval_s1 + ch.gamma;
-    let d3b = proof.eval_b + ch.beta * proof.eval_s2 + ch.gamma;
     let d3c = ch.alpha * ch.beta * proof.eval_zw;
-    let d3_scalar = d3a * d3b * d3c;
+    let d3_scalar = -(beta_s1_gamma * beta_s2_gamma * d3c);
     let d3 = g1_mul(&vk.s3, &d3_scalar)?;
 
     let xin_sq = ch.xin.square();
     let d4_t2 = g1_mul(&proof.t2, &ch.xin)?;
     let d4_t3 = g1_mul(&proof.t3, &xin_sq)?;
     let d4_sum = g1_add(&proof.t1, &g1_add(&d4_t2, &d4_t3)?)?;
-    let d4 = g1_mul(&d4_sum, &ch.zh)?;
+    let d4 = g1_mul(&d4_sum, &(-ch.zh))?;
 
     let r = g1_add(&d1, &d2)?;
-    let r = g1_sub(&r, &d3)?;
-    g1_sub(&r, &d4)
+    let r = g1_add(&r, &d3)?;
+    let d = g1_add(&r, &d4)?;
+
+    Ok((r0, d))
 }
 
 pub fn calculate_f(
@@ -413,11 +472,11 @@ pub fn calculate_f(
     ch: &Challenges,
     d: &G1,
 ) -> Result<G1, PlonkError> {
-    let t1 = g1_mul(&proof.a, &ch.v[1])?;
-    let t2 = g1_mul(&proof.b, &ch.v[2])?;
-    let t3 = g1_mul(&proof.c, &ch.v[3])?;
-    let t4 = g1_mul(&vk.s1, &ch.v[4])?;
-    let t5 = g1_mul(&vk.s2, &ch.v[5])?;
+    let t1 = g1_mul(&proof.a, &ch.v1)?;
+    let t2 = g1_mul(&proof.b, &ch.v2)?;
+    let t3 = g1_mul(&proof.c, &ch.v3)?;
+    let t4 = g1_mul(&vk.s1, &ch.v4)?;
+    let t5 = g1_mul(&vk.s2, &ch.v5)?;
 
     let r = g1_add(d, &t1)?;
     let r = g1_add(&r, &t2)?;
@@ -428,11 +487,11 @@ pub fn calculate_f(
 
 pub fn calculate_e(proof: &Proof, ch: &Challenges, r0: &Fr) -> Result<G1, PlonkError> {
     let scalar = -*r0
-        + ch.v[1] * proof.eval_a
-        + ch.v[2] * proof.eval_b
-        + ch.v[3] * proof.eval_c
-        + ch.v[4] * proof.eval_s1
-        + ch.v[5] * proof.eval_s2
+        + ch.v1 * proof.eval_a
+        + ch.v2 * proof.eval_b
+        + ch.v3 * proof.eval_c
+        + ch.v4 * proof.eval_s1
+        + ch.v5 * proof.eval_s2
         + ch.u * proof.eval_zw;
 
     g1_mul(&G1::GENERATOR, &scalar)
@@ -448,11 +507,12 @@ pub fn is_valid_pairing(
     let u_wxiw = g1_mul(&proof.wxiw, &ch.u)?;
     let a1 = g1_add(&proof.wxi, &u_wxiw)?;
 
-    let xi_wxi = g1_mul(&proof.wxi, &ch.xi)?;
-    let s = ch.u * ch.xi * vk.w;
-    let s_wxiw = g1_mul(&proof.wxiw, &s)?;
-    let b1 = g1_add(&xi_wxi, &s_wxiw)?;
-    let b1 = g1_add(&b1, f)?;
+    // Factor: xi*(wxi + u*w*wxiw) saves 1 g1_mul vs xi*wxi + u*xi*w*wxiw
+    let uw = ch.u * vk.w;
+    let uw_wxiw = g1_mul(&proof.wxiw, &uw)?;
+    let sum = g1_add(&proof.wxi, &uw_wxiw)?;
+    let xi_sum = g1_mul(&sum, &ch.xi)?;
+    let b1 = g1_add(&xi_sum, f)?;
     let b1 = g1_sub(&b1, e)?;
 
     let neg_a1 = g1_neg(&a1);

@@ -13,18 +13,14 @@ pub fn bench_calculate_l1_and_pi(
 }
 
 #[profile]
-pub fn bench_calculate_r0(proof: &Proof, ch: &Challenges, pi: &Fr, l1: &Fr) -> Fr {
-    plonk::calculate_r0(proof, ch, pi, l1)
-}
-
-#[profile]
-pub fn bench_calculate_d(
+pub fn bench_calculate_r0_and_d(
     vk: &VerificationKey,
     proof: &Proof,
     ch: &Challenges,
     l1: &Fr,
-) -> Result<G1, PlonkError> {
-    plonk::calculate_d(vk, proof, ch, l1)
+    pi: &Fr,
+) -> Result<(Fr, G1), PlonkError> {
+    plonk::calculate_r0_and_d(vk, proof, ch, l1, pi)
 }
 
 #[profile]

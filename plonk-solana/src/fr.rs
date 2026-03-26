@@ -5,38 +5,29 @@ use ark_ff::{BigInt, Field, One, PrimeField, Zero};
 
 /// Convert 32 big-endian bytes to ark BigInt<4> (little-endian u64 limbs).
 pub fn bigint_from_be_bytes(bytes: &[u8; 32]) -> BigInt<4> {
-    let mut limbs = [0u64; 4];
-    for (i, limb) in limbs.iter_mut().enumerate() {
-        let offset = 24 - i * 8;
-        *limb = u64::from_be_bytes([
-            bytes[offset],
-            bytes[offset + 1],
-            bytes[offset + 2],
-            bytes[offset + 3],
-            bytes[offset + 4],
-            bytes[offset + 5],
-            bytes[offset + 6],
-            bytes[offset + 7],
-        ]);
-    }
-    BigInt(limbs)
+    BigInt([
+        u64::from_be_bytes([
+            bytes[24], bytes[25], bytes[26], bytes[27], bytes[28], bytes[29], bytes[30], bytes[31],
+        ]),
+        u64::from_be_bytes([
+            bytes[16], bytes[17], bytes[18], bytes[19], bytes[20], bytes[21], bytes[22], bytes[23],
+        ]),
+        u64::from_be_bytes([
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+        ]),
+        u64::from_be_bytes([
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        ]),
+    ])
 }
 
 /// Convert ark BigInt<4> to 32 big-endian bytes.
 pub fn bigint_to_be_bytes(n: &BigInt<4>) -> [u8; 32] {
     let mut bytes = [0u8; 32];
-    for i in 0..4 {
-        let offset = 24 - i * 8;
-        let limb_bytes = n.0[i].to_be_bytes();
-        bytes[offset] = limb_bytes[0];
-        bytes[offset + 1] = limb_bytes[1];
-        bytes[offset + 2] = limb_bytes[2];
-        bytes[offset + 3] = limb_bytes[3];
-        bytes[offset + 4] = limb_bytes[4];
-        bytes[offset + 5] = limb_bytes[5];
-        bytes[offset + 6] = limb_bytes[6];
-        bytes[offset + 7] = limb_bytes[7];
-    }
+    bytes[0..8].copy_from_slice(&n.0[3].to_be_bytes());
+    bytes[8..16].copy_from_slice(&n.0[2].to_be_bytes());
+    bytes[16..24].copy_from_slice(&n.0[1].to_be_bytes());
+    bytes[24..32].copy_from_slice(&n.0[0].to_be_bytes());
     bytes
 }
 
@@ -63,15 +54,26 @@ impl Fr {
     /// Convert big-endian bytes to Fr, rejecting non-canonical values.
     /// Returns `None` if the value is >= the BN254 scalar field modulus.
     pub fn from_be_bytes(bytes: &[u8; 32]) -> Option<Self> {
-        if !is_less_than_bn254_field_size_be(bytes) {
+        let bigint = bigint_from_be_bytes(bytes);
+        if bigint >= <ArkFr as PrimeField>::MODULUS {
             return None;
         }
-        Some(Self::from_be_bytes_unchecked(bytes))
+        // Safe: we just verified bigint < MODULUS
+        Some(Self(ArkFr::from_bigint(bigint).unwrap()))
     }
 
     /// Convert big-endian bytes to Fr with silent modular reduction.
     /// Non-canonical values (>= field modulus) are reduced without error.
     pub fn from_be_bytes_unchecked(bytes: &[u8]) -> Self {
+        // Fast path: 32-byte canonical input (common case for challenges)
+        if bytes.len() == 32 {
+            let bytes32: &[u8; 32] = bytes.try_into().unwrap();
+            let bigint = bigint_from_be_bytes(bytes32);
+            if let Some(fr) = ArkFr::from_bigint(bigint) {
+                return Self(fr);
+            }
+        }
+        // Fallback for non-canonical values or non-32-byte inputs
         let mut le = [0u8; 32];
         let len = bytes.len().min(32);
         let start = 32 - len;
