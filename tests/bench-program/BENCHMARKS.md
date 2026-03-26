@@ -56,8 +56,8 @@ Compute unit benchmarks for PLONK verification operations on Solana.
 
 | Function | CU |
 |----------|-----|
-| [bench_verify](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L6) | 324610 |
-| [bench_verify_unchecked](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L15) | 322144 |
+| [bench_verify](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L6) | 322199 |
+| [bench_verify_unchecked](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L15) | 319733 |
 | [bench_proof_compress](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L24) | 1504 |
 | [bench_proof_decompress](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/top_level.rs#L29) | 5056 |
 
@@ -73,7 +73,7 @@ Compute unit benchmarks for PLONK verification operations on Solana.
 | Function | CU |
 |----------|-----|
 | [bench_calculate_l1_and_pi](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L7) | 65354 |
-| [bench_calculate_r0_and_d](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L16) | 94773 |
+| [bench_calculate_r0_and_d](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L16) | 92362 |
 | [bench_calculate_f](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L28) | 27631 |
 | [bench_is_valid_pairing](https://github.com/ananas-block/plonk-solana/blob/main/tests/bench-program/src/benchmarks/verification_ops.rs#L38) | 88415 |
 

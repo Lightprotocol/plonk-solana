@@ -44,3 +44,4 @@ serde.workspace = true
 serde_json.workspace = true
 proptest.workspace = true
 num-bigint.workspace = true
+plonk-verifier = { path = "../tests/arkworks-verifier" }

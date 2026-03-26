@@ -433,10 +433,11 @@ pub fn calculate_r0_and_d(
     let l1_alpha_sq = *l1 * alpha_sq;
     let beta_s1_gamma = proof.eval_a + ch.beta * proof.eval_s1 + ch.gamma;
     let beta_s2_gamma = proof.eval_b + ch.beta * proof.eval_s2 + ch.gamma;
+    let alpha_eval_zw = ch.alpha * proof.eval_zw;
 
     // r0 computation
     let e3c = proof.eval_c + ch.gamma;
-    let e3 = beta_s1_gamma * beta_s2_gamma * e3c * proof.eval_zw * ch.alpha;
+    let e3 = beta_s1_gamma * beta_s2_gamma * e3c * alpha_eval_zw;
     let r0 = *pi - l1_alpha_sq - e3;
 
     // d computation (reuses shared values)
@@ -460,7 +461,7 @@ pub fn calculate_r0_and_d(
     let d2_scalar = d2a + l1_alpha_sq + ch.u;
     let d2 = g1_mul(&proof.z, &d2_scalar)?;
 
-    let d3c = ch.alpha * ch.beta * proof.eval_zw;
+    let d3c = alpha_eval_zw * ch.beta;
     let d3_scalar = -(beta_s1_gamma * beta_s2_gamma * d3c);
     let d3 = g1_mul(&vk.s3, &d3_scalar)?;
 
@@ -636,6 +637,95 @@ mod tests {
         assert_eq!(
             proof, decompressed,
             "proof should survive compress/decompress roundtrip"
+        );
+    }
+
+    #[test]
+    fn test_intermediates_match_arkworks_reference() {
+        use ark_ec::CurveGroup;
+        use ark_ff::PrimeField;
+        use ark_serialize::{CanonicalSerialize, Compress};
+
+        let vk_json = include_str!("../../tests/fixtures/data/verification_key.json");
+        let proof_json = include_str!("../../tests/fixtures/data/proof.json");
+        let public_json = include_str!("../../tests/fixtures/data/public.json");
+
+        // plonk-solana computation
+        let s_vk = vk_parser::parse_vk_json(vk_json).unwrap();
+        let s_proof = vk_parser::parse_proof_json(proof_json).unwrap();
+        let s_inputs = vk_parser::parse_public_inputs_json(public_json).unwrap();
+        let eval_bytes = compute_eval_bytes(&s_proof);
+        let s_ch = calculate_challenges(&s_vk, &s_proof, &[s_inputs[0]], &eval_bytes).unwrap();
+        let (s_l1, s_pi) = calculate_l1_and_pi(&s_vk, &s_ch, &[s_inputs[0]]).unwrap();
+        let (s_r0, s_d) =
+            calculate_r0_and_d(&s_vk, &s_proof, &s_ch, &s_l1, &s_pi, &eval_bytes).unwrap();
+        let s_f = calculate_f(&s_vk, &s_proof, &s_ch, &s_d).unwrap();
+
+        // arkworks reference computation
+        let a_vk: plonk_verifier::parse::VkJson = serde_json::from_str(vk_json).unwrap();
+        let a_proof: plonk_verifier::parse::ProofJson = serde_json::from_str(proof_json).unwrap();
+        let a_inputs = plonk_verifier::parse::parse_public_inputs(public_json);
+        let a_vk = a_vk.parse();
+        let a_proof = a_proof.parse();
+        let a_ch = plonk_verifier::verifier::calculate_challenges(&a_vk, &a_proof, &a_inputs);
+        let a_lagrange = plonk_verifier::verifier::calculate_lagrange_evaluations(&a_vk, &a_ch);
+        let a_pi = plonk_verifier::verifier::calculate_pi(&a_inputs, &a_lagrange);
+        let a_r0 = plonk_verifier::verifier::calculate_r0(&a_proof, &a_ch, &a_pi, &a_lagrange[1]);
+        let a_d = plonk_verifier::verifier::calculate_d(&a_vk, &a_proof, &a_ch, &a_lagrange[1]);
+        let a_f = plonk_verifier::verifier::calculate_f(&a_vk, &a_proof, &a_ch, &a_d);
+
+        // Helper: arkworks Fr -> big-endian bytes
+        let ark_fr_bytes =
+            |f: &ark_bn254::Fr| -> [u8; 32] { crate::fr::bigint_to_be_bytes(&f.into_bigint()) };
+
+        // Helper: arkworks G1Projective -> big-endian [u8; 64]
+        let ark_g1_bytes = |p: &ark_bn254::G1Projective| -> [u8; 64] {
+            let affine = p.into_affine();
+            let mut le = [0u8; 64];
+            affine
+                .x
+                .serialize_with_mode(&mut le[..32], Compress::No)
+                .unwrap();
+            affine
+                .y
+                .serialize_with_mode(&mut le[32..], Compress::No)
+                .unwrap();
+            le[..32].reverse();
+            le[32..].reverse();
+            le
+        };
+
+        // Compare challenges
+        assert_eq!(s_ch.beta.to_be_bytes(), ark_fr_bytes(&a_ch.beta), "beta");
+        assert_eq!(s_ch.gamma.to_be_bytes(), ark_fr_bytes(&a_ch.gamma), "gamma");
+        assert_eq!(s_ch.alpha.to_be_bytes(), ark_fr_bytes(&a_ch.alpha), "alpha");
+        assert_eq!(s_ch.xi.to_be_bytes(), ark_fr_bytes(&a_ch.xi), "xi");
+        assert_eq!(s_ch.xin.to_be_bytes(), ark_fr_bytes(&a_ch.xin), "xin");
+        assert_eq!(s_ch.zh.to_be_bytes(), ark_fr_bytes(&a_ch.zh), "zh");
+        assert_eq!(s_ch.v1.to_be_bytes(), ark_fr_bytes(&a_ch.v[1]), "v1");
+        assert_eq!(s_ch.v2.to_be_bytes(), ark_fr_bytes(&a_ch.v[2]), "v2");
+        assert_eq!(s_ch.v3.to_be_bytes(), ark_fr_bytes(&a_ch.v[3]), "v3");
+        assert_eq!(s_ch.v4.to_be_bytes(), ark_fr_bytes(&a_ch.v[4]), "v4");
+        assert_eq!(s_ch.v5.to_be_bytes(), ark_fr_bytes(&a_ch.v[5]), "v5");
+        assert_eq!(s_ch.u.to_be_bytes(), ark_fr_bytes(&a_ch.u), "u");
+
+        // Compare Lagrange / pi / r0
+        assert_eq!(s_l1.to_be_bytes(), ark_fr_bytes(&a_lagrange[1]), "l1");
+        assert_eq!(s_pi.to_be_bytes(), ark_fr_bytes(&a_pi), "pi");
+        assert_eq!(s_r0.to_be_bytes(), ark_fr_bytes(&a_r0), "r0");
+
+        // Compare G1 points
+        assert_eq!(s_d.0, ark_g1_bytes(&a_d), "d (linearization)");
+        assert_eq!(s_f.0, ark_g1_bytes(&a_f), "f");
+
+        // Both accept valid proof
+        assert!(
+            verify_unchecked(&s_vk, &s_proof, &[s_inputs[0]]).is_ok(),
+            "plonk-solana rejected valid proof"
+        );
+        assert!(
+            plonk_verifier::verify(&a_vk, &a_proof, &a_inputs),
+            "arkworks rejected valid proof"
         );
     }
 }

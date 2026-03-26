@@ -7,15 +7,15 @@ use ark_ff::{Field, One, Zero};
 use crate::parse::{Proof, VerificationKey};
 use crate::transcript::Transcript;
 
-struct Challenges {
-    beta: Fr,
-    gamma: Fr,
-    alpha: Fr,
-    xi: Fr,
-    xin: Fr,    // xi^n
-    zh: Fr,     // xi^n - 1
-    v: [Fr; 6], // v[1]..v[5], v[0] unused
-    u: Fr,
+pub struct Challenges {
+    pub beta: Fr,
+    pub gamma: Fr,
+    pub alpha: Fr,
+    pub xi: Fr,
+    pub xin: Fr,    // xi^n
+    pub zh: Fr,     // xi^n - 1
+    pub v: [Fr; 6], // v[1]..v[5], v[0] unused
+    pub u: Fr,
 }
 
 /// Verify a PLONK proof against a verification key and public inputs.
@@ -37,7 +37,11 @@ pub fn verify(vk: &VerificationKey, proof: &Proof, public_inputs: &[Fr]) -> bool
     is_valid_pairing(vk, proof, &challenges, &e, &f)
 }
 
-fn calculate_challenges(vk: &VerificationKey, proof: &Proof, public_inputs: &[Fr]) -> Challenges {
+pub fn calculate_challenges(
+    vk: &VerificationKey,
+    proof: &Proof,
+    public_inputs: &[Fr],
+) -> Challenges {
     let mut transcript = Transcript::new();
 
     // Round 2: beta
@@ -119,7 +123,7 @@ fn calculate_challenges(vk: &VerificationKey, proof: &Proof, public_inputs: &[Fr
     }
 }
 
-fn calculate_lagrange_evaluations(vk: &VerificationKey, challenges: &Challenges) -> Vec<Fr> {
+pub fn calculate_lagrange_evaluations(vk: &VerificationKey, challenges: &Challenges) -> Vec<Fr> {
     let domain_size = 1u64 << vk.power;
     let n = Fr::from(domain_size);
 
@@ -138,7 +142,7 @@ fn calculate_lagrange_evaluations(vk: &VerificationKey, challenges: &Challenges)
     l
 }
 
-fn calculate_pi(public_inputs: &[Fr], lagrange: &[Fr]) -> Fr {
+pub fn calculate_pi(public_inputs: &[Fr], lagrange: &[Fr]) -> Fr {
     let mut pi = Fr::zero();
     for (i, input) in public_inputs.iter().enumerate() {
         pi -= *input * lagrange[i + 1];
@@ -146,7 +150,7 @@ fn calculate_pi(public_inputs: &[Fr], lagrange: &[Fr]) -> Fr {
     pi
 }
 
-fn calculate_r0(proof: &Proof, challenges: &Challenges, pi: &Fr, l1: &Fr) -> Fr {
+pub fn calculate_r0(proof: &Proof, challenges: &Challenges, pi: &Fr, l1: &Fr) -> Fr {
     let e1 = *pi;
     let e2 = *l1 * challenges.alpha.square();
 
@@ -158,7 +162,7 @@ fn calculate_r0(proof: &Proof, challenges: &Challenges, pi: &Fr, l1: &Fr) -> Fr 
     e1 - e2 - e3
 }
 
-fn calculate_d(
+pub fn calculate_d(
     vk: &VerificationKey,
     proof: &Proof,
     challenges: &Challenges,
@@ -195,7 +199,7 @@ fn calculate_d(
     d1 + d2 - d3 - d4
 }
 
-fn calculate_f(
+pub fn calculate_f(
     vk: &VerificationKey,
     proof: &Proof,
     challenges: &Challenges,
@@ -208,7 +212,7 @@ fn calculate_f(
         + (vk.s2 * challenges.v[5])
 }
 
-fn calculate_e(proof: &Proof, challenges: &Challenges, r0: &Fr) -> G1Projective {
+pub fn calculate_e(proof: &Proof, challenges: &Challenges, r0: &Fr) -> G1Projective {
     let scalar = -*r0
         + challenges.v[1] * proof.eval_a
         + challenges.v[2] * proof.eval_b

@@ -1826,6 +1826,7 @@ dependencies = [
  "light-hasher",
  "num-bigint 0.4.6",
  "pinocchio",
+ "plonk-verifier",
  "proptest",
  "serde",
  "serde_json",
