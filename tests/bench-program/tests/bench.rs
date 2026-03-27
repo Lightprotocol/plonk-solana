@@ -181,22 +181,8 @@ fn extract_category_and_file_from_path(file_location: &str) -> (String, String) 
     ("other".to_string(), "unknown".to_string())
 }
 
-fn format_display_name(folder_name: &str) -> String {
-    match folder_name {
-        "baseline" => "Baseline".to_string(),
-        "g1_ops" => "G1 Operations".to_string(),
-        "fr_ops" => "Fr Operations".to_string(),
-        "transcript_ops" => "Transcript".to_string(),
-        "verification_ops" => "Verification Steps".to_string(),
-        "top_level" => "Top Level".to_string(),
-        _ => {
-            let mut chars = folder_name.chars();
-            match chars.next() {
-                Some(first) => first.to_uppercase().chain(chars).collect(),
-                None => folder_name.to_string(),
-            }
-        }
-    }
+fn is_external_api(file_stem: &str) -> bool {
+    file_stem == "top_level"
 }
 
 fn format_file_display_name(file_stem: &str) -> String {
@@ -213,76 +199,32 @@ fn format_file_display_name(file_stem: &str) -> String {
         .join(" ")
 }
 
+fn format_cu(cu: u64) -> String {
+    let s = cu.to_string();
+    let mut result = String::new();
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result.chars().rev().collect()
+}
+
 fn write_benchmarks_readme(mut results_by_category: BenchResults) {
     let mut readme = OpenOptions::new()
         .create(true)
         .write(true)
         .truncate(true)
-        .open("BENCHMARKS.md")
+        .open("../../BENCHMARKS.md")
         .expect("Failed to create BENCHMARKS.md");
 
     writeln!(readme, "# PLONK Verifier CU Benchmarks\n").unwrap();
     writeln!(
         readme,
-        "Compute unit benchmarks for PLONK verification operations on Solana.\n"
+        "Compute unit benchmarks for PLONK verification on Solana (1 public input).\n"
     )
     .unwrap();
-
-    // Table of contents
-    writeln!(readme, "## Table of Contents\n").unwrap();
-
-    let mut section_number = 1;
-    let mut baseline_number = 0;
-    if results_by_category.contains_key("baseline") {
-        writeln!(
-            readme,
-            "**[{}. Baseline](#{}-baseline)**\n",
-            section_number, section_number
-        )
-        .unwrap();
-        baseline_number = section_number;
-        section_number += 1;
-    }
-
-    let mut category_numbers = BTreeMap::new();
-    for category in results_by_category.keys() {
-        if category != "baseline" {
-            let display_name = format_display_name(category);
-            let anchor = format!("{}-{}", section_number, category.replace('_', "-"));
-            writeln!(
-                readme,
-                "**[{}. {}](#{})**\n",
-                section_number, display_name, anchor
-            )
-            .unwrap();
-
-            if let Some(files_map) = results_by_category.get(category) {
-                let mut file_number = 1;
-                for file_stem in files_map.keys() {
-                    let file_display_name = format_file_display_name(file_stem);
-                    let anchor = format!(
-                        "{}{}-{}",
-                        section_number,
-                        file_number,
-                        file_display_name.to_lowercase().replace(' ', "-")
-                    );
-                    writeln!(
-                        readme,
-                        "  - [{}.{} {}](#{})",
-                        section_number, file_number, file_display_name, anchor
-                    )
-                    .unwrap();
-                    file_number += 1;
-                }
-            }
-            writeln!(readme).unwrap();
-
-            category_numbers.insert(category.clone(), section_number);
-            section_number += 1;
-        }
-    }
-
-    writeln!(readme).unwrap();
 
     // Get baseline CU
     let mut baseline_cu: u64 = 0;
@@ -294,83 +236,57 @@ fn write_benchmarks_readme(mut results_by_category: BenchResults) {
         }
     }
 
-    // Definitions
-    writeln!(readme, "## Definitions\n").unwrap();
     writeln!(
         readme,
-        "- **CU**: Compute units consumed by the operation (baseline profiling overhead of {} CU subtracted)\n",
+        "All CU values have baseline profiling overhead ({} CU) subtracted.\n",
         baseline_cu
     )
     .unwrap();
 
-    // Write Baseline section
-    if let Some(baseline_files) = results_by_category.remove("baseline") {
-        writeln!(readme, "## {}. Baseline\n", baseline_number).unwrap();
+    // Remove baseline from results
+    results_by_category.remove("baseline");
 
-        let mut file_number = 1;
-        for (file_stem, results) in baseline_files {
-            let file_display_name = format_file_display_name(&file_stem);
-            writeln!(
-                readme,
-                "### {}.{} {}\n",
-                baseline_number, file_number, file_display_name
-            )
-            .unwrap();
-
-            writeln!(readme, "| Function | CU Consumed | CU |").unwrap();
-            writeln!(readme, "|----------|-------------|-----|").unwrap();
-
-            for (func_name, cu_value, file_location) in results {
-                let github_link = make_github_link(&func_name, &file_location);
-                let cu_consumed = cu_value.parse::<u64>().unwrap_or(0);
-                let cu_adjusted = cu_consumed.saturating_sub(baseline_cu);
-                writeln!(
-                    readme,
-                    "| {} | {} | {} |",
-                    github_link, cu_value, cu_adjusted
-                )
-                .unwrap();
+    // External API section -- file stems matching is_external_api
+    writeln!(readme, "## External API\n").unwrap();
+    writeln!(readme, "| Function | CU |").unwrap();
+    writeln!(readme, "|----------|-----|").unwrap();
+    for files_map in results_by_category.values() {
+        for (file_stem, results) in files_map {
+            if !is_external_api(file_stem) {
+                continue;
             }
-
-            writeln!(readme).unwrap();
-            file_number += 1;
+            for (func_name, cu_value, file_location) in results {
+                let github_link = make_github_link(func_name, file_location);
+                let cu = cu_value
+                    .parse::<u64>()
+                    .unwrap_or(0)
+                    .saturating_sub(baseline_cu);
+                writeln!(readme, "| {} | {} |", github_link, format_cu(cu)).unwrap();
+            }
         }
     }
+    writeln!(readme).unwrap();
 
-    // Write remaining categories
-    for (category, files_map) in results_by_category {
-        let display_name = format_display_name(&category);
-        let number = category_numbers.get(&category).unwrap_or(&0);
-
-        writeln!(readme, "## {}. {}\n", number, display_name).unwrap();
-
-        let mut file_number = 1;
+    // Internal API section -- everything else
+    writeln!(readme, "## Internal API\n").unwrap();
+    for files_map in results_by_category.values() {
         for (file_stem, results) in files_map {
-            let file_display_name = format_file_display_name(&file_stem);
-            writeln!(
-                readme,
-                "### {}.{} {}\n",
-                number, file_number, file_display_name
-            )
-            .unwrap();
-
+            if is_external_api(file_stem) {
+                continue;
+            }
+            let display_name = format_file_display_name(file_stem);
+            writeln!(readme, "### {}\n", display_name).unwrap();
             writeln!(readme, "| Function | CU |").unwrap();
             writeln!(readme, "|----------|-----|").unwrap();
-
             for (func_name, cu_value, file_location) in results {
-                let github_link = make_github_link(&func_name, &file_location);
-                let cu_consumed = cu_value.parse::<u64>().unwrap_or(0);
-                let cu_adjusted = if cu_consumed >= baseline_cu {
-                    (cu_consumed - baseline_cu).to_string()
-                } else {
-                    "0".to_string()
-                };
-
-                writeln!(readme, "| {} | {} |", github_link, cu_adjusted).unwrap();
+                let github_link = make_github_link(func_name, file_location);
+                let cu = cu_value
+                    .parse::<u64>()
+                    .unwrap_or(0)
+                    .saturating_sub(baseline_cu);
+                writeln!(readme, "| {} | {} |", github_link, format_cu(cu)).unwrap();
             }
-
             writeln!(readme).unwrap();
-            file_number += 1;
         }
     }
 }

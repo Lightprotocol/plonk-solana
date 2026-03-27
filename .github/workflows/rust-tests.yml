@@ -56,4 +56,4 @@ jobs:
         run: just bench
 
       - name: Check BENCHMARKS.md is up to date
-        run: git diff --exit-code tests/bench-program/BENCHMARKS.md
+        run: git diff --exit-code BENCHMARKS.md
