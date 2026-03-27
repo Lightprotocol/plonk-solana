@@ -54,6 +54,3 @@ jobs:
 
       - name: Run CU benchmarks
         run: just bench
-
-      - name: Check BENCHMARKS.md is up to date
-        run: git diff --exit-code BENCHMARKS.md

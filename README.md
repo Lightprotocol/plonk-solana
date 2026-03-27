@@ -59,4 +59,4 @@ See [BENCHMARKS.md](BENCHMARKS.md) for detailed per-function CU profiling.
 |:---:|---:|---:|
 | 1 | 322,782 | 320,316 |
 
-*Measured on Solana SBF with [light-program-profiler](https://github.com/Lightprotocol/light-program-profiler). Run `just bench` to regenerate.*
+*Run `just bench` to regenerate.*
