@@ -1,6 +1,7 @@
+use integration_program::VerifyInstruction;
 use litesvm::LiteSVM;
 use plonk_solana::vk_parser;
-use plonk_solana::{Fr, Proof};
+use plonk_solana::Fr;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -13,44 +14,6 @@ fn program_id() -> Pubkey {
         0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89,
         0xab, 0xcd,
     ])
-}
-
-/// Serialize proof + public inputs into instruction data.
-/// Format: [n_public: u8] [public_inputs: n*32] [9 G1 points: 9*64] [6 evals: 6*32]
-fn build_instruction_data(public_inputs: &[Fr], proof: &Proof) -> Vec<u8> {
-    let mut data = Vec::new();
-    data.push(public_inputs.len() as u8);
-
-    for pi in public_inputs {
-        data.extend_from_slice(&pi.to_be_bytes());
-    }
-
-    for g1 in [
-        &proof.a,
-        &proof.b,
-        &proof.c,
-        &proof.z,
-        &proof.t1,
-        &proof.t2,
-        &proof.t3,
-        &proof.wxi,
-        &proof.wxiw,
-    ] {
-        data.extend_from_slice(&g1.0);
-    }
-
-    for eval in [
-        &proof.eval_a,
-        &proof.eval_b,
-        &proof.eval_c,
-        &proof.eval_s1,
-        &proof.eval_s2,
-        &proof.eval_zw,
-    ] {
-        data.extend_from_slice(&eval.to_be_bytes());
-    }
-
-    data
 }
 
 fn setup_svm() -> (LiteSVM, Keypair) {
@@ -69,7 +32,7 @@ fn setup_svm() -> (LiteSVM, Keypair) {
     (svm, payer)
 }
 
-#[allow(clippy::result_large_err)] // litesvm::TransactionResult has large Err variant
+#[allow(clippy::result_large_err)]
 fn send_verify_tx(
     svm: &mut LiteSVM,
     payer: &Keypair,
@@ -95,14 +58,14 @@ fn test_plonk_verify_on_chain_valid_proof() {
         vk_parser::parse_public_inputs_json(include_str!("../../fixtures/data/public.json"))
             .unwrap();
 
-    let result = send_verify_tx(
-        &mut svm,
-        &payer,
-        build_instruction_data(&public_inputs, &proof),
-    );
+    let ix = VerifyInstruction {
+        public_inputs,
+        proof,
+    };
+    let result = send_verify_tx(&mut svm, &payer, borsh::to_vec(&ix).unwrap());
     assert!(
         result.is_ok(),
-        "valid proof should verify on-chain: {:?}",
+        "valid proof should verify: {:?}",
         result.err()
     );
 }
@@ -113,12 +76,11 @@ fn test_plonk_verify_on_chain_invalid_proof() {
 
     let proof =
         vk_parser::parse_proof_json(include_str!("../../fixtures/data/proof.json")).unwrap();
-    let bad_inputs = vec![Fr::from(99u64)];
 
-    let result = send_verify_tx(
-        &mut svm,
-        &payer,
-        build_instruction_data(&bad_inputs, &proof),
-    );
-    assert!(result.is_err(), "invalid proof should fail on-chain");
+    let ix = VerifyInstruction {
+        public_inputs: vec![Fr::from(99u64)],
+        proof,
+    };
+    let result = send_verify_tx(&mut svm, &payer, borsh::to_vec(&ix).unwrap());
+    assert!(result.is_err(), "invalid proof should fail");
 }

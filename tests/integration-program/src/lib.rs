@@ -1,5 +1,5 @@
-use plonk_solana::Fr;
-use plonk_solana::Proof;
+use borsh::BorshDeserialize;
+use plonk_solana::{Fr, Proof};
 
 use solana_program::{
     account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, msg,
@@ -11,75 +11,38 @@ include!(concat!(env!("OUT_DIR"), "/verifying_key.rs"));
 
 entrypoint!(process_instruction);
 
-/// Instruction data format:
-/// - [0]: number of public inputs (N)
-/// - [1..1+N*32]: public inputs (N x 32 bytes BE)
-/// - [1+N*32..1+N*32+9*64]: 9 G1 proof points (a,b,c,z,t1,t2,t3,wxi,wxiw)
-/// - [1+N*32+9*64..]: 6 Fr evaluations (eval_a,eval_b,eval_c,eval_s1,eval_s2,eval_zw)
+#[derive(BorshDeserialize, borsh::BorshSerialize)]
+pub struct VerifyInstruction {
+    pub public_inputs: Vec<Fr>,
+    pub proof: Proof,
+}
+
 fn process_instruction(
     _program_id: &Pubkey,
     _accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    if instruction_data.is_empty() {
-        msg!("Empty instruction data");
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    let ix = VerifyInstruction::try_from_slice(instruction_data)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    let n_public = instruction_data[0] as usize;
-    let expected_len = 1 + n_public * 32 + 9 * 64 + 6 * 32;
-    if instruction_data.len() != expected_len {
-        msg!(
-            "Invalid instruction data length: {} (expected {})",
-            instruction_data.len(),
-            expected_len
-        );
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    run_verify(ix)
+}
 
-    let mut offset = 1;
-
-    let public_inputs: [[u8; 32]; 1] = core::array::from_fn(|_| {
-        let mut bytes = [0u8; 32];
-        bytes.copy_from_slice(&instruction_data[offset..offset + 32]);
-        offset += 32;
-        bytes
-    });
-
-    fn read_g1(data: &[u8], offset: &mut usize) -> plonk_solana::G1 {
-        let mut point = [0u8; 64];
-        point.copy_from_slice(&data[*offset..*offset + 64]);
-        *offset += 64;
-        plonk_solana::G1(point)
-    }
-
-    fn read_fr(data: &[u8], offset: &mut usize) -> Fr {
-        let bytes = &data[*offset..*offset + 32];
-        *offset += 32;
-        Fr::from_be_bytes_unchecked(bytes)
-    }
-
-    let proof = Proof {
-        a: read_g1(instruction_data, &mut offset),
-        b: read_g1(instruction_data, &mut offset),
-        c: read_g1(instruction_data, &mut offset),
-        z: read_g1(instruction_data, &mut offset),
-        t1: read_g1(instruction_data, &mut offset),
-        t2: read_g1(instruction_data, &mut offset),
-        t3: read_g1(instruction_data, &mut offset),
-        wxi: read_g1(instruction_data, &mut offset),
-        wxiw: read_g1(instruction_data, &mut offset),
-        eval_a: read_fr(instruction_data, &mut offset),
-        eval_b: read_fr(instruction_data, &mut offset),
-        eval_c: read_fr(instruction_data, &mut offset),
-        eval_s1: read_fr(instruction_data, &mut offset),
-        eval_s2: read_fr(instruction_data, &mut offset),
-        eval_zw: read_fr(instruction_data, &mut offset),
-    };
-
+#[inline(never)]
+fn run_verify(ix: VerifyInstruction) -> ProgramResult {
     let vk = verifying_key();
 
-    plonk_solana::verify(&vk, &proof, &public_inputs).map_err(|e| {
+    match ix.public_inputs.len() {
+        1 => plonk_solana::verify_unchecked(&vk, &ix.proof, &[ix.public_inputs[0]]),
+        _ => {
+            msg!(
+                "Unsupported number of public inputs: {}",
+                ix.public_inputs.len()
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+    }
+    .map_err(|e| {
         msg!("PLONK verification failed: {}", e);
         ProgramError::Custom(u32::from(e))
     })?;

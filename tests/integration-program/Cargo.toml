@@ -15,7 +15,8 @@ check-cfg = [
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-plonk-solana.workspace = true
+plonk-solana = { workspace = true, features = ["borsh"] }
+borsh.workspace = true
 solana-program.workspace = true
 blake3.workspace = true
 
@@ -23,7 +24,8 @@ blake3.workspace = true
 plonk-solana = { workspace = true, features = ["vk"] }
 
 [dev-dependencies]
-plonk-solana = { workspace = true, features = ["vk"] }
+plonk-solana = { workspace = true, features = ["vk", "borsh"] }
+borsh.workspace = true
 litesvm.workspace = true
 solana-compute-budget.workspace = true
 solana-keypair.workspace = true

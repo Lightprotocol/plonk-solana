@@ -59,19 +59,20 @@ export function serializeG1(coords: string[]): Uint8Array {
 
 /**
  * Build the full instruction data buffer from a snarkjs proof and public signals.
- * Matches the on-chain parsing in integration-program/src/lib.rs.
+ * Uses borsh-compatible format matching VerifyInstruction { public_inputs: Vec<Fr>, proof: Proof }.
  */
 export function buildInstructionData(
   proof: SnarkjsPlonkProof,
   publicSignals: string[],
 ): Buffer {
   const nPublic = publicSignals.length;
-  const totalLen = 1 + nPublic * 32 + 9 * 64 + 6 * 32;
+  const totalLen = 4 + nPublic * 32 + 9 * 64 + 6 * 32;
   const buf = Buffer.alloc(totalLen);
   let offset = 0;
 
-  // Number of public inputs
-  buf[offset++] = nPublic;
+  // Vec length prefix (u32 LE, borsh format)
+  buf.writeUInt32LE(nPublic, offset);
+  offset += 4;
 
   // Public inputs (big-endian Fr)
   for (const signal of publicSignals) {
