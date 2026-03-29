@@ -49,6 +49,12 @@
 //! verify(&vk, &proof, &[public_input_1, public_input_2])?;
 //! # Ok::<(), plonk_solana::PlonkError>(())
 //! ```
+//!
+//! ## Examples
+//!
+//! - [Solana program](https://github.com/Lightprotocol/plonk-solana/blob/main/tests/integration-program/src/lib.rs) -- Parses a proof from instruction data and verifies it in a Solana program
+//! - [TypeScript proof generation](https://github.com/Lightprotocol/plonk-solana/blob/main/tests/ts-integration/plonk-verify.test.ts) -- Generates proofs with snarkjs and submits them to Solana
+//! - [Circuit setup](https://github.com/Lightprotocol/plonk-solana/blob/main/tests/fixtures/scripts/setup.sh) -- Compiles circom circuits and generates proving/verification keys
 
 #![no_std]
 
